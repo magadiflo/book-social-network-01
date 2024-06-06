@@ -98,3 +98,10 @@ nuestro frontend. Recordemos que el frontend lo trabajaremos con Angular.
 Observar que hemos agregado 4 dependencias manuales que están delimitadas por comentarios. Las dependencias de
 `io.jsonwebtoken` nos permitirán trabajar con `JWT`, mientras que la dependencia de `org.springdoc` nos permitirá
 trabajar con `Swagger` para la documentación de nuestras apis.
+
+## Descripción general
+
+A continuación se muestra a modo de `diagrama de clase` lo que se pretende construir en este proyecto de backend.
+
+![01.class-diagram.png](assets/01.class-diagram.png)
+
