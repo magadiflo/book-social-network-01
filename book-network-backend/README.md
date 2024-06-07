@@ -351,3 +351,196 @@ siguiente imagen:
 
 - Finalmente, luego de que el controlador realice lo que tenga que realizar, retorna la respuesta al usuario final.
 
+## Crea entidad User
+
+A continuación se crea el usuario con el que se va a trabajar en la aplicación. Esta clase de usuario va a implementar
+dos interfaces propios de `Spring Security (UserDetails y Principal)`, además vamos a hacer uso de la auditoría que nos
+proporciona JPA:
+
+````java
+
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Entity
+@Table(name = "users")
+@EntityListeners(AuditingEntityListener.class)  // Permitirá la realización de la auditoria por jpa
+public class User implements UserDetails, Principal {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private String firstName;
+    private String lastName;
+    private LocalDate dateOfBirth;
+
+    @Column(unique = true)
+    private String email; // Deben ser un valor único que identifique al usuario
+
+    private String password;
+    private boolean accountLocked;
+    private boolean enabled;
+
+    @CreatedDate
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdDate;
+
+    @LastModifiedDate
+    @Column(insertable = false)
+    private LocalDateTime lastModifiedDate;
+
+    @Override
+    public String getName() {
+        return this.email;
+    }
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of();
+    }
+
+    @Override
+    public String getPassword() {
+        return this.password;
+    }
+
+    @Override
+    public String getUsername() {
+        return this.email;
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return !this.accountLocked;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return this.enabled;
+    }
+
+    public String fullName() { // Creamos este método para evitar realizar concatenaciones. Aquí ya tenemos el método preparado.
+        return "%s %s".formatted(this.firstName, this.lastName);
+    }
+}
+````
+
+Nuestra clase `User` implementa la interfaz `UserDetails` y la interfaz `Principal`. Para `Spring Security`, una
+definición de Usuario debe respetar el contrato `UserDetails`, es decir, para Spring Security un usuario que va a
+interactuar en su arquitectura de seguridad es un usuario que debe tener implementada la interfaz `UserDetails`.
+
+La interfaz `UserDetails` representa al usuario tal como lo entiende `Spring Security`. La clase de tu aplicación que
+describe al usuario tiene que implementar esta interfaz, de esta forma el framework lo entenderá.
+
+A continuación, se muestra la definición de la interfaz `UserDetails` que viene en Spring Security:
+
+````java
+public interface UserDetails extends Serializable {
+    Collection<? extends GrantedAuthority> getAuthorities();
+
+    String getPassword();
+
+    String getUsername();
+
+    boolean isAccountNonExpired();
+
+    boolean isAccountNonLocked();
+
+    boolean isCredentialsNonExpired();
+
+    boolean isEnabled();
+}
+````
+
+También nuestra clase `User` implementa la interfaz `Principal`. El usuario que solicita acceso a la aplicación se
+denomina `Principal`. Esta interfaz representa la noción abstracta de Principal, que se puede utilizar para representar
+cualquier entidad, como un individuo, una corporación y una identificación de inicio de sesión.
+
+A continuación se muestra la definición de la intefaz `Principal` que viene en con Spring Security:
+
+````java
+public interface Principal {
+    String getName();
+}
+````
+
+## Auditoría de la entidad User
+
+Nuestra clase de entidad User tiene anotaciones que le permiten a JPA hacer auditoría, es decir, le permite dar
+seguimiento cuando un usuario ha sido creado o actualizado. A continuación se muestran las anotaciones de auditoría a
+las que me refiero:
+
+````java
+/* other annotations */
+@EntityListeners(AuditingEntityListener.class)  // Permitirá la realización de la auditoria por jpa
+public class User implements UserDetails, Principal {
+
+    /* other properties */
+
+    @CreatedDate
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdDate;
+
+    @LastModifiedDate
+    @Column(insertable = false)
+    private LocalDateTime lastModifiedDate;
+
+    /* other methods */
+}
+````
+
+La anotación `@EntityListeners` en Spring Data JPA se utiliza para especificar clases que deben ser notificadas cuando
+se realizan cambios en las entidades gestionadas por JPA. En nuestro caso, tenemos la
+clase `AuditingEntityListener.class`, lo que sugiere que estamos utilizando esta anotación para habilitar la
+funcionalidad de auditoría en tu aplicación.
+
+Cuando se usa junto con la funcionalidad de auditoría, `@EntityListeners` **permite registrar cambios en las entidades,
+como cuándo fueron creadas o modificadas por última vez, quién las creó o modificó**, etc. Esto es útil para mantener un
+registro de la actividad en la base de datos y para auditar los cambios realizados en las entidades.
+
+La clase `AuditingEntityListener.class` es una implementación proporcionada por Spring Data JPA para manejar la
+auditoría de entidades. Por lo general, se combina con otras anotaciones,
+como `@CreatedDate`, `@LastModifiedDate`, `@CreatedBy`, y `@LastModifiedBy`, para registrar información sobre cuándo se
+creó o modificó una entidad y quién lo hizo.
+
+`@CreatedDate:` esta anotación se utiliza para marcar un campo en tu entidad que representa la fecha y hora en que se
+creó la instancia de la entidad. En tu caso, tienes el atributo createdDate anotado con `@CreatedDate`. Al marcar este
+campo con `@CreatedDate`, **Spring Data JPA automáticamente asignará la fecha y hora actual al momento de persistir la
+entidad en la base de datos por primera vez.** La anotación `@Column(nullable = false, updatable = false)` junto
+con `@CreatedDate` indica que **este campo no puede ser nulo y no debe ser actualizable una vez que se ha creado la
+entidad.**
+
+`@LastModifiedDate:` esta anotación se utiliza para marcar un campo que representa la fecha y hora de la última
+modificación de la entidad. En nuestro caso, tienes el atributo `lastModifiedDate` anotado con `@LastModifiedDate`.
+**Cuando se modifica la entidad y se actualiza en la base de datos, Spring Data JPA actualizará automáticamente este
+campo con la fecha y hora actual**. La anotación `@Column(insertable = false)` junto con `@LastModifiedDate` indica que
+este campo no se incluirá al insertar una nueva entidad en la base de datos, **solo se actualizará cuando la entidad se
+modifique.**
+
+Finalmente, necesitamos agregar una anotación `@EnableJpaAuditing` a una clase de configuración, en mi caso a la clase
+principal, **para poder habilitar la auditoría en JPA mediante la configuración de anotaciones.**
+
+````java
+
+@EnableJpaAuditing //<--- Habilitando el uso de anotaciones para auditoría JPA
+@SpringBootApplication
+public class BookNetworkBackendApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(BookNetworkBackendApplication.class, args);
+    }
+
+}
+````
