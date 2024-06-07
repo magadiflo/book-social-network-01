@@ -700,3 +700,138 @@ Si hasta este punto ejecutamos la aplicación, veremos que en la base de datos s
 de las distintas asociaciones que hemos realizado.
 
 ![04.tables.png](assets/04.tables.png)
+
+## Implementa clases de configuración de Spring Security
+
+A continuación creamos la clase de configuración para personalizar la seguridad con Spring Security:
+
+````java
+/**
+ * La propiedad prePostEnabled habilita las anotaciones pre/post de Spring Security (default true).
+ * La propiedad securedEnabled determina si la anotación @Secured debería ser habilitada (default false).
+ * La propiedad jsr250Enabled nos permite usar la anotación @RolesAllowed (default false).
+ */
+@RequiredArgsConstructor
+@EnableMethodSecurity(securedEnabled = true)
+@EnableWebSecurity
+@Configuration
+public class SecurityConfig {
+
+    private final JwtAuthFilter jwtAuthFilter;
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .cors(Customizer.withDefaults())
+                .csrf(AbstractHttpConfigurer::disable)
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers(
+                                "/api/v1/auth/**",
+                                "/v2/api-docs",
+                                "/v3/api-docs",
+                                "/v3/api-docs/**",
+                                "/swagger-resources",
+                                "/swagger-resources/**",
+                                "/configuration/ui",
+                                "/configuration/security",
+                                "/swagger-ui/**",
+                                "/webjars/**",
+                                "/swagger-ui.html").permitAll()
+                        .anyRequest().authenticated()
+                )
+                .addFilterBefore(this.jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
+}
+````
+
+**DONDE**
+
+- `@EnableWebSecurity`, **nos permite personalizar la configuración de seguridad de la aplicación.** Agregue esta
+  anotación a una clase `@Configuration` para tener la configuración de **Spring Security** definida en cualquier
+  `WebSecurityConfigurer` o, más probablemente, exponiendo un bean `SecurityFilterChain`.
+
+
+- `@EnableMethodSecurity(securedEnabled = true)`, **esta anotación nos permite habilitar el uso de otras anotaciones.**
+  Por defecto el atributo `prePostEnabled` está en `true`, quien nos permite habilitar el uso de la
+  anotación `@PreAuthorize` a nivel de método. Por otro lado, el atributo `securedEnabled` por defecto está en `false`,
+  así que explícitamente lo establecemos en `true`; este atributo nos permite habilitar el uso de la
+  anotación `@Secured`.
+
+
+- En el método `securityFilterChain()` vemos un conjunto de paths al que le estamos danto todos los permisos. Estos
+  paths representan (con excepción del primer path `/api/v1/auth/**`) las rutas utilizadas por `Swagger` y `OpenAPI`.
+  Se colocan la `v2` por si en algún momento se llegase a usar una versión antigua de swagger, y la `v3` por si se usa
+  la versión actual.
+
+  ````bash
+  .requestMatchers(
+      "/api/v1/auth/**",
+      "/v2/api-docs",
+      "/v3/api-docs",
+      "/v3/api-docs/**",
+      "/swagger-resources",
+      "/swagger-resources/**",
+      "/configuration/ui",
+      "/configuration/security",
+      "/swagger-ui/**",
+      "/webjars/**",
+      "/swagger-ui.html").permitAll()
+  ````
+
+  Con respecto al primer path `/api/v1/auth/**`, más adelante crearemos un `RestController` al que le definiremos dicho
+  path. Este controlador tendrá endpoints referidos al `login`, `register`, `account validation`, etc.; estos endpoints
+  deben estar libres de restricciones para su acceso dado que son endpoints con los que se van a iniciar los procesos de
+  autenticación, registro, etc.
+
+- `.anyRequest().authenticated()`, cualquier otro path que no se haya definido antes, tendrá que autenticarse.
+
+
+- `.addFilterBefore(this.jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)`, esta línea nos dice que antes de
+  que se ejecute el filtro `UsernamePasswordAuthenticationFilter` debe ejecutarse nuestro filtro `JwtAuthFilter` quien
+  está siendo inyectado vía constructor (más adelante lo implementaremos).
+
+**NOTA: Sobre el AuthenticationProvider**
+
+> En el tutorial define dentro del método de configuración `securityFilterChain()` un
+> `.authenticationProvider(this.authenticationProvider)` quien es inyectado vía constructor.
+>
+> En mi caso no lo voy a definir, dado que `Spring Security` define un `authenticationProvider` por defecto, me refiero
+> a la clase `DaoAuthenticationProvider` que es un subTipo de la interfaz `AuthenticationProvider`.
+>
+> La configuración predeterminada en `Spring Boot` establece el `DaoAuthenticationProvider` como el **proveedor de
+> autenticación principal**. Sin embargo, es posible personalizar esta configuración y utilizar diferentes
+> implementaciones del `AuthenticationProvider` según tus necesidades específicas.
+>
+> En ese sentido, lo único que requerimos es definir un `PasswordEncoder` y un `UserDetailsService` que son elementos
+> importantes para que la clase `DaoAuthenticationProvider` funcione correctamente, ya que los utiliza internamente.
+
+Es importante, tener en cuenta que la capa `AuthenticationProvider`, **es la responsable de la lógica de
+autenticación.** El `AuthenticationProvider` es donde encuentra las condiciones e instrucciones que deciden si
+autenticar una solicitud o no.
+
+El `AuthenticationProvider` en `Spring Security` se encarga de la lógica de autenticación. La implementación
+predeterminada de la interfaz `AuthenticationProvider` delega la responsabilidad de encontrar el usuario del sistema a
+un `UserDetailsService`. También utiliza `PasswordEncoder` para la gestión de contraseñas en el proceso de
+autenticación.
+
+## Define filtro personalizado
+
+Por el momento solo definiremos el filtro personalizado que estamos inyectando vía constructor en la clase de
+configuración personalizada de Spring Security `SecurityConfig`:
+
+````java
+
+@RequiredArgsConstructor
+@Component
+public class JwtAuthFilter extends OncePerRequestFilter {
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
+
+    }
+}
+````
+
