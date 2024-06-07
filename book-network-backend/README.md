@@ -651,3 +651,52 @@ public interface RoleRepository extends JpaRepository<Role, Long> {
     Optional<Role> findByName(String name);
 }
 ````
+
+## Crea la entidad Token y su repositorio
+
+Vamos a crear una entidad llamada `Token`, dado que cuando un usuario se registre en nuestra aplicación recibirá por
+correo un `código de 6 dígitos`. Entonces, necesitamos de alguna manera almacenar el código que se emitió al usuario
+que se acaba de registrar junto a algunos atributos adicionales para llevar el control de dicho código, como cuándo se
+emitió, cuándo expira, etc.
+
+A continuación se muestra la entidad `Token` estableciendo una `ASOCIACIÓN UNIDIRECCIONAL` con la entidad `User`.
+
+````java
+
+@Getter
+@Setter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+@Entity
+@Table(name = "tokens")
+public class Token {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private String token;
+    private LocalDateTime createdAt;
+    private LocalDateTime expiresAt;
+    private LocalDateTime validatedAt;
+
+    @ManyToOne
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+}
+````
+
+Finalmente, la entidad Token tiene su respectivo repositorio, donde definiremos un método personalizado para consultar
+al token a partir de su valor:
+
+````java
+public interface TokenRepository extends JpaRepository<Token, Long> {
+    Optional<Token> findByToken(String token);
+}
+````
+
+## Tablas generadas a partir de las entidades: User, Role y Token
+
+Si hasta este punto ejecutamos la aplicación, veremos que en la base de datos se crean las siguientes tablas producto
+de las distintas asociaciones que hemos realizado.
+
+![04.tables.png](assets/04.tables.png)
