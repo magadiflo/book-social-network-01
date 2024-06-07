@@ -305,3 +305,49 @@ documentación ([Sending Email](https://docs.spring.io/spring-boot/docs/2.0.x/re
 ciertos valores de tiempo de espera (timeout) predeterminados son infinitos y es posible que desee cambiarlos para
 evitar que un servidor de correo que no responde bloquee un hilo.
 
+## Spring Security Overview
+
+Cuando estamos desarrollando una aplicación desde cero, lo primero que debemos considerar configurar debe ser la
+seguridad, porque por ejemplo, necesitaríamos conseguir al usuario o tomar la información del usuario conectado para
+hacer algo al respecto, por ejemplo, auditoría o para saber quién está haciendo tal cosa, cuáles son sus permisos, sus
+roles, etc. es por eso que esto es muy importante para evitar cualquier tipo de cambio y que estos se vuelvan costosos
+en el futuro. Así que primero debemos asegurar nuestra aplicación y luego podemos continuar implementando las diferentes
+características o funcionalidades.
+
+Primero que todo debemos entender cómo es que funciona la seguridad con Spring Security, para eso se muestra la
+siguiente imagen:
+
+![03.spring-security-overview.png](assets/03.spring-security-overview.png)
+
+- Cuando se haga una solicitud HTTP: `GET`, `POST`, `PUT`, `DELETE`, `PATCH`, el primer elemento que entrará en juego
+  será el conjunto de filtros `FilterChain`, quien interceptará la solicitud a través del conjunto de cadena de filtros
+  que tengamos en nuestra aplicación.
+
+
+- Recordemos que en nuestra aplicación de Spring Boot tenemos filtros que ya vienen por defecto y se encuentran en el
+  conjunto de filtros `FilterChain`. Ahora, para implementar la seguridad, es necesario crear nuestro propio filtro. El
+  filtro que crearemos se llamará `JwtAuthenticationFilter` y extenderá de `OncePerRequestFilter`.
+
+
+- Nuestro filtro personalizado `JwtAuthenticationFilter` verificará si el token existe. Si el token existe utilizará
+  al `JwtService` para validarlo; en caso contrario, el request la pasará al siguiente filtro de la cadena de filtros
+  donde se realizarán acciones propias de los filtros a los que se pase la solicitud.
+
+
+- Si el `JwtService` determina que el `jwt` es un token inválido, entonces lanzará una
+  excepción `TokenInvalidException`; en caso contrario, si el token es correcto, se extraerá detalles del usuario a
+  partir del token como el `username`. Con el `username` extraído se utilizará el `UserDetailsService` para recuperar al
+  usuario de la base de datos de postgres.
+
+
+- Si el usuario no existe, se lanza la excepción `UserNotFoundException`, caso contrario, actualizamos
+  el `SecurityContextHolder` con los detalles del usuario autenticado.
+
+
+- Una vez que el `SecurityContextHolder` está actualizado con los detalles del usuario autenticado, pasamos
+  al `DispatcherServlet`. El `DispatcherServlet` basado en la url que ha sido invocado trata de determinar a
+  qué `controller` enviar la solicitud http.
+
+
+- Finalmente, luego de que el controlador realice lo que tenga que realizar, retorna la respuesta al usuario final.
+
