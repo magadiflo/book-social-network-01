@@ -835,3 +835,19 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 }
 ````
 
+## Define Bean PasswordEncoder
+
+Crearemos una nueva clase de configuración que contendrá múltiples `@Bean`, uno de ellos será por el momento la
+implementación del `PasswordEncoder` que será usado por la clase `DaoAuthenticationProvider` definida por defecto por
+Spring Security como implementación del `AuthenticationProvider`.
+
+````java
+
+@Configuration
+public class BeansConfig {
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+}
+````
