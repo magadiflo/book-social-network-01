@@ -1,11 +1,13 @@
 package dev.magadiflo.book.network.app.user;
 
+import dev.magadiflo.book.network.app.role.Role;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.security.Principal;
@@ -46,6 +48,15 @@ public class User implements UserDetails, Principal {
     @Column(insertable = false)
     private LocalDateTime lastModifiedDate;
 
+    @JoinTable(
+            name = "users_roles",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id"),
+            uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "role_id"})
+    )
+    @ManyToMany(fetch = FetchType.EAGER)
+    private List<Role> roles;
+
     @Override
     public String getName() {
         return this.email;
@@ -53,7 +64,7 @@ public class User implements UserDetails, Principal {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of();
+        return this.roles.stream().map(role -> new SimpleGrantedAuthority(role.getName())).toList();
     }
 
     @Override

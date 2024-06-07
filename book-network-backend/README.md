@@ -544,3 +544,96 @@ public class BookNetworkBackendApplication {
 
 }
 ````
+
+## Crea la entidad Role
+
+Como vamos a trabajar con `Spring Security` necesitamos que nuestra entidad `User` tenga roles definidos para otorgarle
+permisos dentro de la aplicación. En ese sentido, crearemos la entidad `Role` y realizaremos la asociación bidireccional
+hacia la entidad `User`:
+
+````java
+
+@Getter
+@Setter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+@Entity
+@Table(name = "roles")
+@EntityListeners(AuditingEntityListener.class)
+public class Role {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(unique = true)
+    private String name;
+
+    @CreatedDate
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdDate;
+
+    @LastModifiedDate
+    @Column(insertable = false)
+    private LocalDateTime lastModifiedDate;
+
+    @JsonIgnore
+    @ManyToMany(mappedBy = "roles")
+    private List<User> users;
+}
+````
+
+Notar que la entidad Role está utilizando las mismas anotaciones de auditoría que usamos en la entidad User. Además,
+estamos estableciendo la relación `@ManyToMany` con la entidad `User`. En esta asociación, adicionalmente agregamos
+la anotación `@JsonIgnore`, dado que cuando la entidad `User` llame a la entidad `Role`, el `Role` ya no vuelva a
+llamar a la entidad `User`, de esta manera evitamos una llamada cíclica.
+
+## Viendo a detalle la relación de User con Role (bidireccional)
+
+En la entidad `Role` vimos que usamos la anotación `@ManyToMany` para establecer la asociación con la entidad `User`.
+En este apartado haremos lo mismo con la entidad `User`:
+
+````java
+
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Entity
+@Table(name = "users")
+@EntityListeners(AuditingEntityListener.class)
+public class User implements UserDetails, Principal {
+
+    /* other properties */
+
+    @JoinTable(
+            name = "users_roles",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id"),
+            uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "role_id"})
+    )
+    @ManyToMany(fetch = FetchType.EAGER)
+    private List<Role> roles;
+
+    @Override
+    public String getName() {
+        return this.email;
+    }
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return this.roles.stream().map(role -> new SimpleGrantedAuthority(role.getName())).toList();
+    }
+
+    /* other methods */
+}
+````
+
+Como observamos, estamos definiendo una asociación bidireccional entre User y Role, es por eso que en esta entidad
+User también definimos la anotación `@ManyToMany`. Además, he agregado la anotación `@JoinTable` para personalizar
+la tabla intermedia que se genera automáticamente de la relación manyToMany.
+
+Observemos que he definido el conjunto de columnas `user_id` y `role_id` como únicos, dado que el usuario no debe
+repetir el mismo tipo de rol múltiples veces. Además, es importante observar que hemos implementado correctamente
+el método `getAuthorities()` a partir de la lista de roles.
