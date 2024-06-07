@@ -851,3 +851,26 @@ public class BeansConfig {
     }
 }
 ````
+
+## Implementa el UserDetailsService
+
+Al igual que la implementación del `PasswordEncoder`, requerimos implementar el `UserDetailsService` para que sea usado
+por el `DaoAuthenticationProvider` (implementación por defecto de Spring Security), en ese sentido, creamos la clase
+de implementación `UserDetailsServiceImpl` que implementa la interfaz `UserDetailsService`:
+
+````java
+
+@RequiredArgsConstructor
+@Service
+public class UserDetailsServiceImpl implements UserDetailsService {
+
+    private final UserRepository userRepository;
+
+    @Transactional(readOnly = true)
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        return this.userRepository.findByEmail(username)
+                .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado"));
+    }
+}
+````
