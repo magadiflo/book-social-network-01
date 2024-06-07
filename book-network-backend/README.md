@@ -218,3 +218,90 @@ permitirá enviar correos desde el backend, mientras que el puerto `1080` es el 
 web del servidor de correo:
 
 ![02.mail-dev-web.png](assets/02.mail-dev-web.png)
+
+## Configurando propiedades de la aplicación
+
+Toda aplicación de Spring Boot tiene el `perfil por default` que es representado por el archivo `application.yml`. En
+nuestro caso, además de agregar configuraciones globales en el archivo `application.yml` crearemos un nuevo perfil para
+desarrollo que estará representado por el archivo `application-dev.yml`.
+
+**NOTA**
+> Es importante observar que el perfil que creemos debe tener la siguiente estructura
+> `application-<NOMBRE_DEL_PERFIL>.yml` y a continuación el nombre del perfil.
+
+A continuación crearemos las configuraciones del perfil por default `application.yml`:
+
+````yml
+server:
+  port: 8080
+  error:
+    include-message: always
+
+spring:
+  application:
+    name: book-network-backend
+
+  profiles:
+    active: dev
+
+  servlet:
+    multipart:
+      max-file-size: 50MB
+
+springdoc:
+  default-produces-media-type: application/json
+````
+
+De las configuraciones anteriores podemos observar que el perfil que estamos seleccionando será `dev`, es decir,
+cuando la aplicación de Spring Boot se ejecute con el `perfil activo dev` (configurado mediante la propiedad
+`spring.profiles.active en application.yml`), buscará un archivo llamado `application-dev.yml` y usará sus
+configuraciones. Luego, utilizará las configuraciones que estén en el perfil por defecto `(application.yml)`. Esto
+significa que las configuraciones que existan en el perfil seleccionado `(application-dev.yml)` sobrescribirán
+las configuraciones que se repitan en el perfil por defecto `(application.yml)`.
+
+El siguiente paso es agregar las configuraciones al perfil seleccionado. Para eso necesitamos crear dicho archivo, al
+cual le llamaremos `application-dev.yml`:
+
+````yml
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5435/db_book_social_network
+    username: magadiflo
+    password: magadiflo
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+
+  mail:
+    host: localhost
+    port: 1025
+    username: magadiflo
+    password: magadiflo
+    default-encoding: UTF-8
+    properties:
+      mail:
+        mime:
+          charset: UTF-8
+        smtp:
+          trust: '*'
+          connectiontimeout: 5000
+          timeout: 3000
+          writetimeout: 5000
+          auth: true
+          starttls:
+            enable: true
+
+logging:
+  level:
+    org.hibernate.SQL: DEBUG
+````
+
+De las configuraciones anteriores podemos hablar del `connectiontimeout`, `timeout` y `writetimeout`. Según la
+documentación ([Sending Email](https://docs.spring.io/spring-boot/docs/2.0.x/reference/html/boot-features-email.html)),
+ciertos valores de tiempo de espera (timeout) predeterminados son infinitos y es posible que desee cambiarlos para
+evitar que un servidor de correo que no responde bloquee un hilo.
+
