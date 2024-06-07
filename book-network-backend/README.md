@@ -637,3 +637,17 @@ la tabla intermedia que se genera automáticamente de la relación manyToMany.
 Observemos que he definido el conjunto de columnas `user_id` y `role_id` como únicos, dado que el usuario no debe
 repetir el mismo tipo de rol múltiples veces. Además, es importante observar que hemos implementado correctamente
 el método `getAuthorities()` a partir de la lista de roles.
+
+## Implementa User y Role Repository
+
+````java
+public interface UserRepository extends JpaRepository<User, Long> {
+    Optional<User> findByEmail(String email);
+}
+````
+
+````java
+public interface RoleRepository extends JpaRepository<Role, Long> {
+    Optional<Role> findByName(String name);
+}
+````
