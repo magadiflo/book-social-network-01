@@ -1081,3 +1081,78 @@ public class AuthenticationService {
     }
 }
 ````
+
+## Implementa el método de registro del AuthenticationService
+
+En el apartado anterior definimos la clase de servicio `AuthenticationService` que está siendo inyectada en el
+controlador `AuthenticationController`. En este apartado implementaremos su método `register()`.
+
+````java
+
+@RequiredArgsConstructor
+@Service
+public class AuthenticationService {
+
+    private final RoleRepository roleRepository;
+    private final UserRepository userRepository;
+    private final TokenRepository tokenRepository;
+    private final PasswordEncoder passwordEncoder;
+
+    public void register(RegistrationRequest request) {
+        Role defaultRoleDB = this.roleRepository.findByName("USER")
+                .orElseThrow(() -> new IllegalArgumentException("El rol USER no fue encontrado"));
+        User user = User.builder()
+                .firstName(request.firstName())
+                .lastName(request.lastName())
+                .email(request.email())
+                .password(this.passwordEncoder.encode(request.password()))
+                .accountLocked(false)
+                .enabled(false)
+                .roles(List.of(defaultRoleDB))
+                .build();
+        this.userRepository.save(user);
+        this.sendValidationEmail(user);
+    }
+
+    private void sendValidationEmail(User user) {
+        String activationCode = this.generateAndSaveActivationCode(user);
+        //TODO send email
+    }
+
+    private String generateAndSaveActivationCode(User user) {
+        String activationCode = this.generateActivationCode(6);
+        Token token = Token.builder()
+                .token(activationCode)
+                .createdAt(LocalDateTime.now())
+                .expiresAt(LocalDateTime.now().plusMinutes(10))
+                .user(user)
+                .build();
+        this.tokenRepository.save(token);
+        return activationCode;
+    }
+
+    private String generateActivationCode(int length) {
+        String characters = "0123456789";
+        StringBuilder codeBuilder = new StringBuilder();
+        SecureRandom secureRandom = new SecureRandom();
+        for (int i = 0; i < length; i++) {
+            int randomIndex = secureRandom.nextInt(characters.length()); // Obtenemos índices del [0..9]
+            codeBuilder.append(characters.charAt(randomIndex)); // Obtenemos el carácter según el índice
+        }
+        return codeBuilder.toString();
+    }
+}
+````
+
+`SecureRandom`, esta clase proporciona un generador de números aleatorios (RNG) criptográficamente sólido.
+Un número aleatorio criptográficamente fuerte cumple mínimamente con las pruebas estadísticas del generador de números
+aleatorios especificadas en FIPS 140-2, Requisitos de seguridad para módulos criptográficos, sección 4.9.1. Además,
+**SecureRandom debe producir resultados no deterministas.** Por lo tanto, cualquier material inicial pasado a un objeto
+SecureRandom debe ser impredecible y todas las secuencias de salida de SecureRandom deben ser criptográficamente
+sólidas, como se describe en RFC 4086: Requisitos de aleatoriedad para la seguridad.
+
+La diferencia clave entre `SecureRandom` y `Random` (otra clase en Java utilizada para generar números aleatorios) es
+que `SecureRandom` utiliza algoritmos criptográficamente seguros para generar números aleatorios, lo que lo hace
+adecuado para aplicaciones que requieren aleatoriedad confiable, como la generación de claves criptográficas,
+contraseñas seguras, y otros usos donde la predictibilidad de los números aleatorios podría ser un problema de
+seguridad.
