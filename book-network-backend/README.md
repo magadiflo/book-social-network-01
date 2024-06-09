@@ -965,3 +965,55 @@ application:
       secret-key: jNFY9S0YoLZ9xizq2V8FG5yMudcZpBKXyLQjSWPbiX8jNFY9S0Y
       expiration: 3600000
 ````
+
+## Implementa filtro personalizado JwtAuthFilter
+
+En un apartado superior habíamos definido nuestro filtro personalizado `JwtAuthFilter`. Pues bien, en este apartado
+terminaremos de implementarlo.
+
+Recordar que para que nuestra clase `JwtAuthFilter` sea reconocido por `Spring Security` como un filtro personalizado,
+debemos de extender la clase abstracta `OncePerRequestFilter` e implementar su método abstracto `doFilterInternal`.
+
+`OncePerRequestFilter`, es una clase base de filtro que tiene como objetivo garantizar una ejecución única por envío
+de solicitud, en cualquier contenedor de servlets. Se garantiza que el filtro se ejecutará exactamente una vez por cada
+solicitud HTTP, incluso si la solicitud atraviesa varios filtros en la cadena de filtros.
+
+````java
+
+@RequiredArgsConstructor
+@Component
+public class JwtAuthFilter extends OncePerRequestFilter {
+
+    private final JwtService jwtService;
+    private final UserDetailsService userDetailsService;
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
+
+        final boolean contains = request.getServletPath().contains("/api/v1/auth");
+        final String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
+        final String jwt;
+        final String userEmail;
+
+        if (contains || authHeader == null || !authHeader.startsWith("Bearer ")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        jwt = authHeader.substring("Bearer ".length());
+        userEmail = this.jwtService.extractUsername(jwt);
+
+        if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
+
+            if (this.jwtService.isTokenValid(jwt, userDetails)) {
+                var authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            }
+        }
+        filterChain.doFilter(request, response);
+    }
+}
+````
