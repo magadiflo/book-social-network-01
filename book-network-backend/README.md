@@ -1017,3 +1017,67 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     }
 }
 ````
+
+## Crea el controlador de autenticación
+
+Vamos a crear el controlador que realizará las operaciones de login, registro, validación, etc. Empezaremos definiendo
+el endpoint para el `/register`:
+
+````java
+
+@Tag(name = "Authentication", description = "API de autenticación de usuario")
+@RequiredArgsConstructor
+@RestController
+@RequestMapping(path = "/api/v1/auth")
+public class AuthenticationController {
+
+    private final AuthenticationService authenticationService;
+
+    @PostMapping(path = "/register")
+    public ResponseEntity<Void> register(@Valid @RequestBody RegistrationRequest request) {
+        this.authenticationService.register(request);
+        return ResponseEntity.accepted().build();
+    }
+
+}
+````
+
+El tag `@Tag(name = "Authentication", description = "API de autenticación de usuario")` es de swagger. Cuando usemos
+la `UI de Swagger` veremos agrupados los endpoints de este controlador.
+
+En el controlador `AuthenticationController` estamos usando el record `RegistrationRequest` para recibir los datos que
+vienen en la solicitud http.
+
+A continuación se muestra el record `RegistrationRequest` cuyos atributos tienen anotaciones de validación:
+
+````java
+public record RegistrationRequest(@NotBlank(message = "El nombre es obligatorio")
+                                  String firstName,
+
+                                  @NotBlank(message = "El apellido es obligatorio")
+                                  String lastName,
+
+                                  @NotBlank(message = "El correo es obligatorio")
+                                  @Email(message = "El correo no tiene un formato válido")
+                                  String email,
+
+                                  @NotBlank(message = "La contraseña es obligatoria")
+                                  @Size(min = 8, message = "La contraseña debería tener como mínimo 8 caracteres")
+                                  String password) {
+}
+````
+
+Si observamos el controlador `AuthenticationController` estamos inyectando una clase de servicio `AuthenticationService`
+que por el momento solo define un método que está siendo usado por el método `register()` del controlador.
+Esta clase de servicio la implementaremos en el siguiente apartado.
+
+````java
+
+@RequiredArgsConstructor
+@Service
+public class AuthenticationService {
+    public void register(RegistrationRequest request) {
+
+    }
+}
+````
