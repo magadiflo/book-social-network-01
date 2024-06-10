@@ -1,6 +1,7 @@
 package dev.magadiflo.book.network.app.auth;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -18,7 +19,7 @@ public class AuthenticationController {
     private final AuthenticationService authenticationService;
 
     @PostMapping(path = "/register")
-    public ResponseEntity<Void> register(@Valid @RequestBody RegistrationRequest request) {
+    public ResponseEntity<Void> register(@Valid @RequestBody RegistrationRequest request) throws MessagingException {
         this.authenticationService.register(request);
         return ResponseEntity.accepted().build();
     }

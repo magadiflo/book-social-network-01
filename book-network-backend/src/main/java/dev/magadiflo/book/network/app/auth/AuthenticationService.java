@@ -1,12 +1,16 @@
 package dev.magadiflo.book.network.app.auth;
 
+import dev.magadiflo.book.network.app.email.EmailService;
+import dev.magadiflo.book.network.app.email.EmailTemplateName;
 import dev.magadiflo.book.network.app.role.Role;
 import dev.magadiflo.book.network.app.role.RoleRepository;
 import dev.magadiflo.book.network.app.user.Token;
 import dev.magadiflo.book.network.app.user.TokenRepository;
 import dev.magadiflo.book.network.app.user.User;
 import dev.magadiflo.book.network.app.user.UserRepository;
+import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -22,8 +26,12 @@ public class AuthenticationService {
     private final UserRepository userRepository;
     private final TokenRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
-    public void register(RegistrationRequest request) {
+    @Value("${application.mailing.frontend.activation-url}")
+    private String activationUrl;
+
+    public void register(RegistrationRequest request) throws MessagingException {
         Role defaultRoleDB = this.roleRepository.findByName("USER")
                 .orElseThrow(() -> new IllegalArgumentException("El rol USER no fue encontrado"));
         User user = User.builder()
@@ -39,9 +47,10 @@ public class AuthenticationService {
         this.sendValidationEmail(user);
     }
 
-    private void sendValidationEmail(User user) {
+    private void sendValidationEmail(User user) throws MessagingException {
         String activationCode = this.generateAndSaveActivationCode(user);
-        //TODO send email
+        this.emailService.sendEmail(user.getEmail(), user.fullName(), EmailTemplateName.ACTIVATE_ACCOUNT,
+                this.activationUrl, activationCode, "Activación de cuenta");
     }
 
     private String generateAndSaveActivationCode(User user) {

@@ -1322,3 +1322,57 @@ pero por el momento solo implementaremos el `activate-account.html`:
 
 </html>
 ````
+
+## Actualiza el servicio AuthenticationService para el envío de email
+
+Una vez que hemos implementado el método `sendEmail()` la clase `EmailService`, vamos a actualizar el
+método `register()` de la clase de servicio `AuthenticationService` para que cuando un usuario se registre, a
+continuación se pueda enviar un correo para validar su cuenta:
+
+````java
+
+@RequiredArgsConstructor
+@Service
+public class AuthenticationService {
+
+    /* other properties */
+    private final EmailService emailService;
+
+    @Value("${application.mailing.frontend.activation-url}")
+    private String activationUrl;
+
+    public void register(RegistrationRequest request) throws MessagingException {
+        Role defaultRoleDB = this.roleRepository.findByName("USER")
+                .orElseThrow(() -> new IllegalArgumentException("El rol USER no fue encontrado"));
+        User user = User.builder()
+                .firstName(request.firstName())
+                .lastName(request.lastName())
+                .email(request.email())
+                .password(this.passwordEncoder.encode(request.password()))
+                .accountLocked(false)
+                .enabled(false)
+                .roles(List.of(defaultRoleDB))
+                .build();
+        this.userRepository.save(user);
+        this.sendValidationEmail(user);
+    }
+
+    private void sendValidationEmail(User user) throws MessagingException {
+        String activationCode = this.generateAndSaveActivationCode(user);
+        this.emailService.sendEmail(user.getEmail(), user.fullName(), EmailTemplateName.ACTIVATE_ACCOUNT,
+                this.activationUrl, activationCode, "Activación de cuenta");
+    }
+    /* other methods */
+}
+````
+
+Debemos crear la configuración `application.mailing.frontend.activation-url` en el `application-dev.yml`. Esta
+configuración la estamos usando en el `AuthenticationService` para enviárselo al servicio `EmailService` y éste a
+su vez lo adjunte a la plantilla html:
+
+````yml
+application:
+  mailing:
+    frontend:
+      activation-url: http://localhost:4200/activate-account
+````
