@@ -1804,3 +1804,107 @@ $ curl -v -X POST -H "Content-Type: application/json" -d "{\"email\": \"martin@g
 Si decodificamos el jwt veremos el contenido que hay en él:
 
 ![07.decode-jwt.png](assets/07.decode-jwt.png)
+
+## Prueba flujo cuando el código de autenticación ha caducado
+
+Inicialmente habíamos registrado al usuario `milagros@gmail.com` cuya cuenta aún no ha sido activada:
+`(users) enabled=false` y `(tokens) validated_at=null`. Solo como nota, el código de activación de este registro sí ha
+llegado al correo.
+
+Veamos cómo es que inicialmente tenemos los datos del usuario `milagros@gmail.com` que ha sigo registrado ya con un
+tiempo bien prolongado.
+
+````bash
+$ docker container exec -it c-postgres-bsn /bin/sh
+/ # psql -U magadiflo -d db_book_social_network
+psql (15.2)
+Type "help" for help.
+
+db_book_social_network=# SELECT * FROM users;
+ id | account_locked |        created_date        | date_of_birth |       email        | enabled | first_name |     last_modified_date     | last_name |                           password
+----+----------------+----------------------------+---------------+--------------------+---------+------------+----------------------------+-----------+--------------------------------------------------------------
+  1 | f              | 2024-06-09 23:10:35.555767 |               | milagros@gmail.com | f       | Milagros   |                            | Diaz      | $2a$10$NlmuwPQdn1wy0V.zss9JLOu3sv5Y2xAEf/8NCphd5aY.OMYIWcb12
+  2 | f              | 2024-06-10 00:41:35.931245 |               | martin@gmail.com   | t       | Martin     | 2024-06-10 00:47:16.875359 | Diaz      | $2a$10$mWuK1LNjNgVEkTglRKQj.OiorPil3APzkMBhLRYfQeolmPx0XPvH6
+(2 rows)
+
+db_book_social_network=# SELECT * FROM tokens;
+ id |         created_at         |         expires_at         | token  |       validated_at        | user_id
+----+----------------------------+----------------------------+--------+---------------------------+---------
+  1 | 2024-06-09 23:10:35.594157 | 2024-06-09 23:20:35.594157 | 118161 |                           |       1
+  2 | 2024-06-10 00:41:36.045093 | 2024-06-10 00:51:36.045093 | 564332 | 2024-06-10 00:47:16.90961 |       2
+````
+
+Ahora, supongamos que el usuario se ha demorado en activar su cuenta, es decir, el código de activación (token) ya ha
+expirado, por lo que ahora trataremos de activar la cuenta con el token vencido:
+
+````bash
+$ curl -v -G --data "token=118161" http://localhost:8080/api/v1/auth/activate-account | jq
+>
+< HTTP/1.1 403
+<
+````
+
+````bash
+java.lang.RuntimeException: El token de activación ha caducado. Se ha enviado un nuevo token al mismo correo.
+	at dev.magadiflo.book.network.app.auth.AuthenticationService.activateAccount(AuthenticationService.java:81) ~[classes/:na]
+......
+````
+
+Como observamos, nos lanza un error el servidor y en el log observamos el mensaje que más adelante capturaremos y
+mandaremos al cliente.
+
+Revisando las tablas antes mostradas ahora debemos tener un nuevo código de activación para el usuario
+`milagros@gmail.com`:
+
+````bash
+db_book_social_network=# SELECT * FROM users;
+ id | account_locked |        created_date        | date_of_birth |       email        | enabled | first_name |     last_modified_date     | last_name |                           password
+----+----------------+----------------------------+---------------+--------------------+---------+------------+----------------------------+-----------+--------------------------------------------------------------
+  1 | f              | 2024-06-09 23:10:35.555767 |               | milagros@gmail.com | f       | Milagros   |                            | Diaz      | $2a$10$NlmuwPQdn1wy0V.zss9JLOu3sv5Y2xAEf/8NCphd5aY.OMYIWcb12
+  2 | f              | 2024-06-10 00:41:35.931245 |               | martin@gmail.com   | t       | Martin     | 2024-06-10 00:47:16.875359 | Diaz      | $2a$10$mWuK1LNjNgVEkTglRKQj.OiorPil3APzkMBhLRYfQeolmPx0XPvH6
+(2 rows)
+
+db_book_social_network=# SELECT * FROM tokens;
+ id |         created_at         |         expires_at         | token  |       validated_at        | user_id
+----+----------------------------+----------------------------+--------+---------------------------+---------
+  1 | 2024-06-09 23:10:35.594157 | 2024-06-09 23:20:35.594157 | 118161 |                           |       1
+  2 | 2024-06-10 00:41:36.045093 | 2024-06-10 00:51:36.045093 | 564332 | 2024-06-10 00:47:16.90961 |       2
+  3 | 2024-06-10 00:58:53.935437 | 2024-06-10 01:08:53.935437 | 551495 |                           |       1
+````
+
+Y además, un nuevo email debe haberse enviado al correo registrado:
+
+![08.new-activation-code.png](assets/08.new-activation-code.png)
+
+Utilizaremos el nuevo código de activación para activar la cuenta. Vemos que el código de estado es exitoso:
+
+````bash
+$ curl -v -G --data "token=551495" http://localhost:8080/api/v1/auth/activate-account | jq
+>
+< HTTP/1.1 200
+<
+````
+
+Finalmente, verificamos la base de datos y vemos que ahora sí la cuenta ha sido activada:
+
+````bash
+$ docker container exec -it c-postgres-bsn /bin/sh
+/ # psql -U magadiflo -d db_book_social_network
+psql (15.2)
+Type "help" for help.
+
+db_book_social_network=# SELECT * FROM users;
+ id | account_locked |        created_date        | date_of_birth |       email        | enabled | first_name |     last_modified_date     | last_name |                           password
+----+----------------+----------------------------+---------------+--------------------+---------+------------+----------------------------+-----------+--------------------------------------------------------------
+  2 | f              | 2024-06-10 00:41:35.931245 |               | martin@gmail.com   | t       | Martin     | 2024-06-10 00:47:16.875359 | Diaz      | $2a$10$mWuK1LNjNgVEkTglRKQj.OiorPil3APzkMBhLRYfQeolmPx0XPvH6
+  1 | f              | 2024-06-09 23:10:35.555767 |               | milagros@gmail.com | t       | Milagros   | 2024-06-10 01:02:50.882691 | Diaz      | $2a$10$NlmuwPQdn1wy0V.zss9JLOu3sv5Y2xAEf/8NCphd5aY.OMYIWcb12
+(2 rows)
+
+db_book_social_network=# SELECT * FROM tokens;
+ id |         created_at         |         expires_at         | token  |        validated_at        | user_id
+----+----------------------------+----------------------------+--------+----------------------------+---------
+  1 | 2024-06-09 23:10:35.594157 | 2024-06-09 23:20:35.594157 | 118161 |                            |       1
+  2 | 2024-06-10 00:41:36.045093 | 2024-06-10 00:51:36.045093 | 564332 | 2024-06-10 00:47:16.90961  |       2
+  3 | 2024-06-10 00:58:53.935437 | 2024-06-10 01:08:53.935437 | 551495 | 2024-06-10 01:02:50.926765 |       1
+(3 rows)
+````
