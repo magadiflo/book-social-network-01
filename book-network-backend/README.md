@@ -1156,3 +1156,169 @@ que `SecureRandom` utiliza algoritmos criptográficamente seguros para generar n
 adecuado para aplicaciones que requieren aleatoriedad confiable, como la generación de claves criptográficas,
 contraseñas seguras, y otros usos donde la predictibilidad de los números aleatorios podría ser un problema de
 seguridad.
+
+## Implementa el servicio de envío de email
+
+Crearemos la clase de servicio `EmailService` que nos permitirá trabajar con la librería `JavaMailServer` para el envío
+de correos.
+
+````java
+
+@RequiredArgsConstructor
+@Service
+public class EmailService {
+
+    private final JavaMailSender javaMailSender;
+    private final SpringTemplateEngine templateEngine;
+
+    @Async
+    public void sendEmail(String to, String username, EmailTemplateName emailTemplateName,
+                          String confirmationUrl, String activationCode, String subject) throws MessagingException {
+
+        String templateName = emailTemplateName == null ? "confirm-email" : emailTemplateName.getName();
+
+        MimeMessage mimeMessage = this.javaMailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, MimeMessageHelper.MULTIPART_MODE_MIXED, StandardCharsets.UTF_8.name());
+
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("username", username);
+        variables.put("confirmationUrl", confirmationUrl);
+        variables.put("activation_code", activationCode);
+
+        Context context = new Context();
+        context.setVariables(variables);
+
+        helper.setFrom("contact@magadiflo.com");
+        helper.setTo(to);
+        helper.setSubject(subject);
+
+        String template = this.templateEngine.process(templateName, context);
+
+        helper.setText(template, true);
+
+        this.javaMailSender.send(mimeMessage);
+    }
+}
+````
+
+El envío del correo puede ser algo pesado, quizás nos lleve mucho tiempo, así que no queremos bloquear al usuario y
+hacerlo esperar hasta que se envíe el correo, por lo que necesitamos agregar la siguiente anotación a nivel del método
+para enviar el correo de forma asíncrona `@Async`.
+
+Cuando agregamos la anotación `@Async` sobre un método debemos agregar en una clase de configuración (en mi caso en la
+clase principal) la anotación `@EnableAsync`.
+
+````java
+
+@EnableAsync //<--- Habilita la capacidad de ejecución de métodos asíncronos de Spring
+@EnableJpaAuditing
+@SpringBootApplication
+public class BookNetworkBackendApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(BookNetworkBackendApplication.class, args);
+    }
+
+}
+````
+
+`@EnableAsync`, **habilita la capacidad de ejecución de métodos asincrónicos de Spring**, Para usarse junto con las
+clases `@Configuration`, lo que permite el procesamiento asíncrono basado en anotaciones para un contexto de aplicación
+Spring completo.
+
+Por otro lado, dentro del método `sendEmail()` estamos definiendo el nombre de la plantilla `html` que vamos a
+usar, por defecto, si el `EmailTemplateName` es nulo, tomará la plantilla con nombre `confirm-email.html`, caso
+contrario tomará el que se le envíe por parámetro.
+
+En la clase de enumeración `EmailTemplateName` definimos el nombre de una de las plantillas html que vamos a usar:
+
+````java
+
+@Getter
+public enum EmailTemplateName {
+    ACTIVATE_ACCOUNT("activate-account");
+
+    private final String name;
+
+    EmailTemplateName(String name) {
+        this.name = name;
+    }
+}
+````
+
+En el código tenemos dos plantillas que pueden ser usadas `activate-account` y `confim-email`, eso significa que
+necesitamos crearle a cada uno su correspondiente `documento HTML` que incorpore `Thyemelaf` para poder leer las
+variables que se le pasen.
+
+En el path `src/main/resources/templates` crearemos las dos plantillas `activate-account.html` y `confirm-email.html`,
+pero por el momento solo implementaremos el `activate-account.html`:
+
+````html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Activación de Cuenta</title>
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #F4F4F4;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 10px auto;
+            padding: 20px;
+            background-color: #FFF;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .activation-code {
+            font-size: 36px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .activation-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .activation-link a {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: #FFF;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+
+        .activation-link a:hover {
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+<div class="container">
+    <h1>Activación de cuenta</h1>
+    <p class="greeting" th:text="'Hola ' + ${username} + ','"></p>
+    <p>
+        ¡Gracias por registrarte! Por favor, utilice el siguiente
+        <b>código de activación</b> para activar su cuenta.
+    </p>
+    <div class="activation-code"><span th:text="${activation_code}"></span></div>
+    <div class="activation-link">
+        <a th:href="${confirmationUrl}" target="_blank">Activa tu cuenta</a>
+    </div>
+</div>
+</body>
+
+</html>
+````
