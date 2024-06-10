@@ -2061,3 +2061,65 @@ $ curl -v -X POST -H "Content-Type: application/json" -d "{\"firstName\": \"\", 
   ]
 }
 ````
+
+## Probando Swagger y OpenAPI
+
+Sin haber realizado ninguna configuración, más que el haber agregado la anotación
+`@Tag(name = "Authentication", description = "API de autenticación de usuario")` en el controlador
+`AuthenticationController` (aunque podríamos haberlo no agregado), tan solo agregando la dependencia de `Swagger`,
+ejecutamos el proyecto `Spring Boot`, abrimos el navegador e ingresamos la siguiente dirección:
+
+````bash
+$ http://localhost:8080/swagger-ui.html
+````
+
+Al dar enter, seremos redireccionados a la siguiente dirección (podríamos haber ingresado directamente a la url de
+abajo, pero lo hice para ver de dónde es que sale):
+
+````bash
+$ http://localhost:8080/swagger-ui/index.html
+````
+
+En la imagen siguiente observamos la interfaz gráfica de `Swagger-ui`:
+
+![09.swagger-ui.png](assets/09.swagger-ui.png)
+
+Si ingresamos a la siguiente dirección veremos el documento en formato json:
+
+````bash
+  $ http://localhost:8080/v3/api-docs
+````
+
+````bash
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "OpenAPI definition",
+    "version": "v0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Generated server url"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Authentication",
+      "description": "API de autenticación de usuario"
+    }
+  ],
+  "paths": {
+    "/api/v1/auth/register": {...},
+    "/api/v1/auth/authenticate": {...},
+    "/api/v1/auth/activate-account": {...}
+  },
+  "components": {
+    ...
+  }
+}
+````
+
+**NOTA**   
+La especificación anterior será usada desde Angular con la dependencia `ng-openapi-gen` para generar la clase
+de servicio que implemente automáticamente los métodos para hacer solicitudes a los endpoints de nuestro backend.
