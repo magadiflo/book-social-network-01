@@ -2123,3 +2123,58 @@ Si ingresamos a la siguiente dirección veremos el documento en formato json:
 **NOTA**   
 La especificación anterior será usada desde Angular con la dependencia `ng-openapi-gen` para generar la clase
 de servicio que implemente automáticamente los métodos para hacer solicitudes a los endpoints de nuestro backend.
+
+---
+
+## Crea la entidad Book
+
+A partir de este punto empezaremos a crear las funcionalidades relacionadas a la lógica de negocio de la aplicación.
+Empezaremos creando la entidad `Book`:
+
+````java
+
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Entity
+@Table(name = "books")
+@EntityListeners(AuditingEntityListener.class)
+public class Book {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private String title;
+    private String authorName;
+    private String isbn;
+    private String synopsis;
+    private String bookCover;
+    private boolean archived;
+    private boolean shareable;
+
+    @CreatedDate
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdDate;
+
+    @LastModifiedDate
+    @Column(insertable = false)
+    private LocalDateTime lastModifiedDate;
+
+    @CreatedBy
+    @Column(nullable = false, updatable = false)
+    private Long createdBy; // Del tipo Long, porque la clave primaria de la entidad User la definimos como Long
+
+    @LastModifiedBy
+    @Column(insertable = false)
+    private Long lastModifiedBy; // Del tipo Long, porque la clave primaria de la entidad User la definimos como Long
+}
+````
+
+Es importante mencionar que hemos agregado dos atributos de auditoria adicionales anotados con: `@CreatedBy` y
+`@LastModifiedBy`, ambos están sobre campos del tipo `Long`. Estos atributos hacen referencia a la clave primaria
+de la entidad `User`:
+
+- `@CreatedBy`, se utiliza para almacenar la información (en nuestro caso su PK) del usuario que creó la entidad.
+- `@LastModifiedBy`, se utiliza para almacenar la información (en nuestro caso su PK) del usuario que modificó la
+  entidad por última vez.
