@@ -2178,3 +2178,40 @@ de la entidad `User`:
 - `@CreatedBy`, se utiliza para almacenar la información (en nuestro caso su PK) del usuario que creó la entidad.
 - `@LastModifiedBy`, se utiliza para almacenar la información (en nuestro caso su PK) del usuario que modificó la
   entidad por última vez.
+
+## Crea la entidad Feedback
+
+````java
+
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Entity
+@Table(name = "feedbacks")
+@EntityListeners(AuditingEntityListener.class)
+public class Feedback {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private Double note;
+    private String comment;
+
+    @CreatedDate
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdDate;
+
+    @LastModifiedDate
+    @Column(insertable = false)
+    private LocalDateTime lastModifiedDate;
+
+    @CreatedBy
+    @Column(nullable = false, updatable = false)
+    private Long createdBy;
+
+    @LastModifiedBy
+    @Column(insertable = false)
+    private Long lastModifiedBy;
+}
+````
