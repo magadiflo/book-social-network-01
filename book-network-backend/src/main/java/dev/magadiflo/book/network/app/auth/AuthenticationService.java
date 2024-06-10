@@ -4,6 +4,7 @@ import dev.magadiflo.book.network.app.email.EmailService;
 import dev.magadiflo.book.network.app.email.EmailTemplateName;
 import dev.magadiflo.book.network.app.role.Role;
 import dev.magadiflo.book.network.app.role.RoleRepository;
+import dev.magadiflo.book.network.app.security.JwtService;
 import dev.magadiflo.book.network.app.user.Token;
 import dev.magadiflo.book.network.app.user.TokenRepository;
 import dev.magadiflo.book.network.app.user.User;
@@ -11,11 +12,15 @@ import dev.magadiflo.book.network.app.user.UserRepository;
 import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 
 @RequiredArgsConstructor
@@ -27,6 +32,8 @@ public class AuthenticationService {
     private final TokenRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final AuthenticationManager authenticationManager;
+    private final JwtService jwtService;
 
     @Value("${application.mailing.frontend.activation-url}")
     private String activationUrl;
@@ -45,6 +52,23 @@ public class AuthenticationService {
                 .build();
         this.userRepository.save(user);
         this.sendValidationEmail(user);
+    }
+
+    public AuthenticationResponse authenticate(AuthenticationRequest request) {
+        var authentication = new UsernamePasswordAuthenticationToken(request.email(), request.password());
+        Authentication authenticate = this.authenticationManager.authenticate(authentication);
+        /**
+         * Si el flujo llega hasta esta línea significa que la autenticación ha sido exitosa retornando un objeto
+         * del tipo Authentication. En caso contrario, el método this.authenticationManager.authenticate(...)
+         * lanzará una excepción
+         */
+        User user = (User) authenticate.getPrincipal();
+        var claims = new HashMap<String, Object>();
+        claims.put("fullName", user.fullName());
+
+        String jwt = this.jwtService.generateToken(claims, user);
+
+        return new AuthenticationResponse(jwt);
     }
 
     private void sendValidationEmail(User user) throws MessagingException {

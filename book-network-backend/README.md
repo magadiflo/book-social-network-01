@@ -1491,3 +1491,129 @@ accedemos a él mediante el navegador para ver el correo que se envió junto al 
 Observemos que el código de activación que recibimos en el correo es el mismo que tenemos almacenado en la
 tabla `tokens` de la base de datos.
 
+## Implementa método de autenticación (login)
+
+Antes de implementar el método de autenticación necesitamos crear clases cuya única finalidad será recibir y enviar
+datos a través de solicitudes http:
+
+````java
+public record AuthenticationRequest(@NotBlank(message = "El correo es obligatorio")
+                                    @Email(message = "El correo no tiene un formato válido")
+                                    String email,
+
+                                    @NotBlank(message = "La contraseña es obligatoria")
+                                    @Size(min = 8, message = "La contraseña debería tener como mínimo 8 caracteres")
+                                    String password) {
+}
+````
+
+````java
+public record AuthenticationResponse(String token) {
+}
+````
+
+Para implementar la autenticación del usuario debemos crear un nuevo método en el servicio `AuthenticationService`:
+
+````java
+
+@RequiredArgsConstructor
+@Service
+public class AuthenticationService {
+
+    /* other properties */
+    private final AuthenticationManager authenticationManager;
+    private final JwtService jwtService;
+
+    public AuthenticationResponse authenticate(AuthenticationRequest request) {
+        var authentication = new UsernamePasswordAuthenticationToken(request.email(), request.password());
+        Authentication authenticate = this.authenticationManager.authenticate(authentication);
+        /**
+         * Si el flujo llega hasta esta línea significa que la autenticación ha sido exitosa retornando un objeto
+         * del tipo Authentication. En caso contrario, el método this.authenticationManager.authenticate(...)
+         * lanzará una excepción
+         */
+        User user = (User) authenticate.getPrincipal();
+        var claims = new HashMap<String, Object>();
+        claims.put("fullName", user.fullName());
+
+        String jwt = this.jwtService.generateToken(claims, user);
+
+        return new AuthenticationResponse(jwt);
+    }
+
+    /* other methods */
+}
+````
+
+Observar que en la clase anterior estamos inyectando la interface `AuthenticationManager` quien nos permitirá realizar
+la autenticación del usuario. Sin embargo, necesitamos crear un `@Bean` que retorne el objeto concreto
+del `AuthenticationManager` y se inyecte en la propiedad `authenticationManager`.
+
+Para eso, en la clase `BeansConfig` agregamos el `@Bean AuthenticationManager`:
+
+````java
+
+@Configuration
+public class BeansConfig {
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
+    }
+
+    @Bean
+    public CorsFilter corsFilter() {
+        final CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowCredentials(true);
+        configuration.setAllowedOrigins(Collections.singletonList("http://localhost:4200"));
+        configuration.setAllowedHeaders(Arrays.asList(HttpHeaders.ORIGIN, HttpHeaders.CONTENT_TYPE, HttpHeaders.ACCEPT, HttpHeaders.AUTHORIZATION));
+        configuration.setAllowedMethods(Arrays.asList(HttpMethod.GET.name(), HttpMethod.POST.name(), HttpMethod.PUT.name(), HttpMethod.DELETE.name(), HttpMethod.PATCH.name()));
+
+        final UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+
+        return new CorsFilter(source);
+    }
+}
+````
+
+Aprovechamos la clase de configuración anterior para también agregarle el `@Bean CorsFilter`, este bean es muy
+importante, dado que nuestra aplicación de Angular estará levantado en el dominio `http://localhost:4200`, mientras
+que nuestra aplicación de Spring Boot correrá en `http://localhost:8080`. Cuando se hagan peticiones desde
+Angular, nuestro navegador bloqueará la petición debido a las políticas de seguridad de CORS (Cross-Origin Resource
+Sharing), porque detecta que la petición se está realizando a otro dominio que no es el mismo en el que está corriendo
+el frontend. Para evitar ese problema, necesitamos agregar el bean de `CorsFilter` en el backend, para permitir el
+dominio del frontend y así habilitar las peticiones entre ambos dominios.
+
+Nuestra configuración del `CorsFilter` permite solicitudes desde http://localhost:4200 a cualquier endpoint en el
+backend, permitiendo los métodos HTTP y encabezados definidos dentro de la configuración. Esta configuración asegura
+que las peticiones entre la aplicación Angular y el backend Spring Boot no sean bloqueadas por el navegador.
+
+Finalmente, implementamos el endpoint de `/authenticate` en el controlador:
+
+````java
+@Tag(name = "Authentication", description = "API de autenticación de usuario")
+@RequiredArgsConstructor
+@RestController
+@RequestMapping(path = "/api/v1/auth")
+public class AuthenticationController {
+
+    private final AuthenticationService authenticationService;
+
+    @PostMapping(path = "/register")
+    public ResponseEntity<Void> register(@Valid @RequestBody RegistrationRequest request) throws MessagingException {
+        this.authenticationService.register(request);
+        return ResponseEntity.accepted().build();
+    }
+
+    @PostMapping(path = "/authenticate")
+    public ResponseEntity<AuthenticationResponse> authenticate(@Valid @RequestBody AuthenticationRequest request) {
+        return ResponseEntity.ok(this.authenticationService.authenticate(request));
+    }
+
+}
+````
