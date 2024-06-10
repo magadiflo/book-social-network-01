@@ -1908,3 +1908,127 @@ db_book_social_network=# SELECT * FROM tokens;
   3 | 2024-06-10 00:58:53.935437 | 2024-06-10 01:08:53.935437 | 551495 | 2024-06-10 01:02:50.926765 |       1
 (3 rows)
 ````
+
+## Manejo de excepciones
+
+Para el manejo de excepciones crearemos un catálogo de errores que contendrá los **códigos de errores del negocio**,
+es decir, códigos, mensajes, etc. que es propio del negocio. No hay que confundirnos con los códigos http que son
+propios de los estados http. Cuando creamos nuestros catálogos de errores, tendremos esta clase de enumeración donde
+definiremos nuestro código personalizado, que es propio del negocio:
+
+````java
+
+@Getter
+public enum BusinessErrorCodes {
+
+    NO_CODE(0, HttpStatus.NOT_IMPLEMENTED, "Sin código"),
+    INCORRECT_CURRENT_PASSWORD(300, HttpStatus.BAD_REQUEST, "La contraseña actual es incorrecta"),
+    NEW_PASSWORD_DOES_NOT_MATCH(301, HttpStatus.BAD_REQUEST, "La nueva contraseña no coincide"),
+    ACCOUNT_LOCKED(302, HttpStatus.FORBIDDEN, "La cuenta del usuario está bloqueada"),
+    ACCOUNT_DISABLED(303, HttpStatus.FORBIDDEN, "La cuenta del usuario está deshabilitada"),
+    BAD_CREDENTIALS(304, HttpStatus.FORBIDDEN, "Usuario y/o contraseña es incorrecta");
+
+    private final int code;
+    private final HttpStatus httpStatus;
+    private final String description;
+
+    BusinessErrorCodes(int code, HttpStatus httpStatus, String description) {
+        this.code = code;
+        this.httpStatus = httpStatus;
+        this.description = description;
+    }
+}
+````
+
+Ahora tenemos que crear `dto` que nos permita definir un formato uniforme para todas las excepciones que se produzcan
+en nuestra aplicación.
+
+````java
+
+@Getter
+@Setter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_EMPTY)
+public class ExceptionResponse {
+    private Integer businessErrorCode;
+    private String businessErrorDescription;
+    private String error;
+    private Set<String> validationErrors;
+    private Map<String, String> errors;
+}
+````
+
+Finalmente, definimos la clase controladora que manejará las excepciones producidas en nuestra aplicación. Notar que
+en esta clase estamos usando las dos clases anteriormente definidas:
+
+````java
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(LockedException.class)
+    public ResponseEntity<ExceptionResponse> handleException(LockedException exception) {
+        ExceptionResponse exceptionResponse = ExceptionResponse.builder()
+                .businessErrorCode(BusinessErrorCodes.ACCOUNT_LOCKED.getCode())
+                .businessErrorDescription(BusinessErrorCodes.ACCOUNT_LOCKED.getDescription())
+                .error(exception.getMessage())
+                .build();
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(exceptionResponse);
+    }
+
+    @ExceptionHandler(DisabledException.class)
+    public ResponseEntity<ExceptionResponse> handleException(DisabledException exception) {
+        ExceptionResponse exceptionResponse = ExceptionResponse.builder()
+                .businessErrorCode(BusinessErrorCodes.ACCOUNT_DISABLED.getCode())
+                .businessErrorDescription(BusinessErrorCodes.ACCOUNT_DISABLED.getDescription())
+                .error(exception.getMessage())
+                .build();
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(exceptionResponse);
+    }
+
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ExceptionResponse> handleException(BadCredentialsException exception) {
+        ExceptionResponse exceptionResponse = ExceptionResponse.builder()
+                .businessErrorCode(BusinessErrorCodes.BAD_CREDENTIALS.getCode())
+                .businessErrorDescription(BusinessErrorCodes.BAD_CREDENTIALS.getDescription())
+                .error(BusinessErrorCodes.BAD_CREDENTIALS.getDescription())
+                .build();
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(exceptionResponse);
+    }
+
+    @ExceptionHandler(MessagingException.class)
+    public ResponseEntity<ExceptionResponse> handleException(MessagingException exception) {
+        ExceptionResponse exceptionResponse = ExceptionResponse.builder()
+                .error(exception.getMessage())
+                .build();
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(exceptionResponse);
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ExceptionResponse> handleException(MethodArgumentNotValidException exception) {
+        Set<String> errors = new HashSet<>();
+        exception.getBindingResult().getAllErrors().forEach(error -> {
+            String errorMessage = error.getDefaultMessage();
+            errors.add(errorMessage);
+        });
+
+        ExceptionResponse exceptionResponse = ExceptionResponse.builder()
+                .validationErrors(errors)
+                .build();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exceptionResponse);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ExceptionResponse> handleException(Exception exception) {
+        // Registrar la excepción. En nuestro caso, imprimiremos en consola la pila de errores para
+        exception.printStackTrace();
+        ExceptionResponse exceptionResponse = ExceptionResponse.builder()
+                .businessErrorDescription("Error interno, contacte al administrador")
+                .error(exception.getMessage())
+                .build();
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(exceptionResponse);
+    }
+}
+````
