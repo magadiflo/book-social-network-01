@@ -1680,3 +1680,127 @@ public class AuthenticationController {
 
 }
 ````
+
+## Prueba flujo completo de autenticación
+
+### Registro de usuario
+
+````bash
+$ curl -v -X POST -H "Content-Type: application/json" -d "{\"firstName\": \"Martin\", \"lastName\": \"Diaz\", \"email\": \"martin@gmail.com\", \"password\": \"12345678\"}" http://localhost:8080/api/v1/auth/register | jq
+>
+< HTTP/1.1 202
+< Vary: Origin
+< Vary: Access-Control-Request-Method
+< Vary: Access-Control-Request-Headers
+< X-Content-Type-Options: nosniff
+< X-XSS-Protection: 0
+< Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+< Pragma: no-cache
+< Expires: 0
+< X-Frame-Options: DENY
+< Content-Length: 0
+< Date: Mon, 10 Jun 2024 05:41:36 GMT
+<
+````
+
+- Verificamos el registro generado en las tablas de la base de datos
+
+````bash
+$ docker container exec -it c-postgres-bsn /bin/sh
+/ # psql -U magadiflo -d db_book_social_network
+psql (15.2)
+Type "help" for help.
+
+db_book_social_network=# SELECT * FROM roles;
+ id |        created_date        | last_modified_date | name
+----+----------------------------+--------------------+------
+  1 | 2024-06-09 22:55:02.196783 |                    | USER
+(1 row)
+
+db_book_social_network=# SELECT * FROM users;
+ id | account_locked |        created_date        | date_of_birth |       email        | enabled | first_name | last_modified_date | last_name |                           password
+----+----------------+----------------------------+---------------+--------------------+---------+------------+--------------------+-----------+--------------------------------------------------------------
+  1 | f              | 2024-06-09 23:10:35.555767 |               | milagros@gmail.com | f       | Milagros   |                    | Diaz      | $2a$10$NlmuwPQdn1wy0V.zss9JLOu3sv5Y2xAEf/8NCphd5aY.OMYIWcb12
+  2 | f              | 2024-06-10 00:41:35.931245 |               | martin@gmail.com   | f       | Martin     |                    | Diaz      | $2a$10$mWuK1LNjNgVEkTglRKQj.OiorPil3APzkMBhLRYfQeolmPx0XPvH6
+(2 rows)
+
+db_book_social_network=# SELECT * FROM tokens;
+ id |         created_at         |         expires_at         | token  | validated_at | user_id
+----+----------------------------+----------------------------+--------+--------------+---------
+  1 | 2024-06-09 23:10:35.594157 | 2024-06-09 23:20:35.594157 | 118161 |              |       1
+  2 | 2024-06-10 00:41:36.045093 | 2024-06-10 00:51:36.045093 | 564332 |              |       2
+(2 rows)
+
+db_book_social_network=# SELECT * FROM users_roles;
+ user_id | role_id
+---------+---------
+       1 |       1
+       2 |       1
+(2 rows)
+
+db_book_social_network=#
+````
+
+- Verificamos que haya llegado el correo de verificación
+
+![06.register-user-email.png](assets/06.register-user-email.png)
+
+### Activando cuenta
+
+- Activamos la cuenta con el código de verificación recibido
+
+````bash
+$ curl -v -G --data "token=564332" http://localhost:8080/api/v1/auth/activate-account | jq
+>
+< HTTP/1.1 200
+< Vary: Origin
+< Vary: Access-Control-Request-Method
+< Vary: Access-Control-Request-Headers
+< X-Content-Type-Options: nosniff
+< X-XSS-Protection: 0
+< Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+< Pragma: no-cache
+< Expires: 0
+< X-Frame-Options: DENY
+< Content-Length: 0
+< Date: Mon, 10 Jun 2024 05:47:16 GMT
+<
+````
+
+- Con la activación de la cuenta realizada anteriormente, debemos verificar en la base de datos que el **usuario esté
+  habilitado** y que el campo de `validated_at` de la tabla tokens tenga la fecha del momento en que se hizo la
+  actualización
+
+````bash
+db_book_social_network=# SELECT * FROM users;
+ id | account_locked |        created_date        | date_of_birth |       email        | enabled | first_name |     last_modified_date     | last_name |                           password
+----+----------------+----------------------------+---------------+--------------------+---------+------------+----------------------------+-----------+--------------------------------------------------------------
+  1 | f              | 2024-06-09 23:10:35.555767 |               | milagros@gmail.com | f       | Milagros   |                            | Diaz      | $2a$10$NlmuwPQdn1wy0V.zss9JLOu3sv5Y2xAEf/8NCphd5aY.OMYIWcb12
+  2 | f              | 2024-06-10 00:41:35.931245 |               | martin@gmail.com   | t       | Martin     | 2024-06-10 00:47:16.875359 | Diaz      | $2a$10$mWuK1LNjNgVEkTglRKQj.OiorPil3APzkMBhLRYfQeolmPx0XPvH6
+(2 rows)
+
+db_book_social_network=# SELECT * FROM tokens;
+ id |         created_at         |         expires_at         | token  |       validated_at        | user_id
+----+----------------------------+----------------------------+--------+---------------------------+---------
+  1 | 2024-06-09 23:10:35.594157 | 2024-06-09 23:20:35.594157 | 118161 |                           |       1
+  2 | 2024-06-10 00:41:36.045093 | 2024-06-10 00:51:36.045093 | 564332 | 2024-06-10 00:47:16.90961 |       2
+(2 rows)
+````
+
+### Iniciando sesión
+
+Finalmente, vamos a iniciar sesión enviando el email y password utilizados en el registro:
+
+````bash
+$ curl -v -X POST -H "Content-Type: application/json" -d "{\"email\": \"martin@gmail.com\", \"password\": \"12345678\"}" http://localhost:8080/api/v1/auth/authenticate | jq
+>
+< HTTP/1.1 200
+<
+{
+  "token": "eyJhbGciOiJIUzI1NiJ9.eyJmdWxsTmFtZSI6Ik1hcnRpbiBEaWF6Iiwic3ViIjoibWFydGluQGdtYWlsLmNvbSIsImlhdCI6MTcxNzk5ODY5MCwiZXhwIjoxNzE4MDAyMjkwLCJhdXRob3JpdGllcyI6WyJVU0VSIl19.w91GedxxUu3FfXmPHiRzJhY20BmRMxYqr4JUaZ_tZd8"
+}
+````
+
+Si decodificamos el jwt veremos el contenido que hay en él:
+
+![07.decode-jwt.png](assets/07.decode-jwt.png)
