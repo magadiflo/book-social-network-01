@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -69,6 +70,25 @@ public class AuthenticationService {
         String jwt = this.jwtService.generateToken(claims, user);
 
         return new AuthenticationResponse(jwt);
+    }
+
+    public void activateAccount(String token) throws MessagingException {
+        Token tokenDB = this.tokenRepository.findByToken(token)
+                .orElseThrow(() -> new RuntimeException("Token inválido"));
+
+        if (LocalDateTime.now().isAfter(tokenDB.getExpiresAt())) {
+            this.sendValidationEmail(tokenDB.getUser());
+            throw new RuntimeException("El token de activación ha caducado. Se ha enviado un nuevo token al mismo correo.");
+        }
+
+        // Podemos obtener el usuario desde el token recuperado o nuevamente ir a la bd
+        User user = this.userRepository.findById(tokenDB.getUser().getId())
+                .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado en la activación"));
+        user.setEnabled(true);
+        this.userRepository.save(user);
+
+        tokenDB.setValidatedAt(LocalDateTime.now());
+        this.tokenRepository.save(tokenDB);
     }
 
     private void sendValidationEmail(User user) throws MessagingException {

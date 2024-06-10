@@ -5,10 +5,7 @@ import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Authentication", description = "API de autenticación de usuario")
 @RequiredArgsConstructor
@@ -27,6 +24,11 @@ public class AuthenticationController {
     @PostMapping(path = "/authenticate")
     public ResponseEntity<AuthenticationResponse> authenticate(@Valid @RequestBody AuthenticationRequest request) {
         return ResponseEntity.ok(this.authenticationService.authenticate(request));
+    }
+
+    @GetMapping(path = "/activate-account")
+    public void confirm(@RequestParam String token) throws MessagingException {
+        this.authenticationService.activateAccount(token);
     }
 
 }

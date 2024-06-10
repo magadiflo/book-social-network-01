@@ -1596,6 +1596,7 @@ que las peticiones entre la aplicación Angular y el backend Spring Boot no sean
 Finalmente, implementamos el endpoint de `/authenticate` en el controlador:
 
 ````java
+
 @Tag(name = "Authentication", description = "API de autenticación de usuario")
 @RequiredArgsConstructor
 @RestController
@@ -1613,6 +1614,68 @@ public class AuthenticationController {
     @PostMapping(path = "/authenticate")
     public ResponseEntity<AuthenticationResponse> authenticate(@Valid @RequestBody AuthenticationRequest request) {
         return ResponseEntity.ok(this.authenticationService.authenticate(request));
+    }
+
+}
+````
+
+## Implementa método de activación de cuenta
+
+Implementamos primero el método `activateAccount()` en la clase de servicio `AuthenticationService`:
+
+````java
+
+@RequiredArgsConstructor
+@Service
+public class AuthenticationService {
+
+    /* other properties */
+
+    private final UserRepository userRepository;
+    private final TokenRepository tokenRepository;
+
+    /* other methods */
+
+    public void activateAccount(String token) throws MessagingException {
+        Token tokenDB = this.tokenRepository.findByToken(token)
+                .orElseThrow(() -> new RuntimeException("Token inválido"));
+
+        if (LocalDateTime.now().isAfter(tokenDB.getExpiresAt())) {
+            this.sendValidationEmail(tokenDB.getUser());
+            throw new RuntimeException("El token de activación ha caducado. Se ha enviado un nuevo token al mismo correo.");
+        }
+
+        // Podemos obtener el usuario desde el token recuperado o nuevamente ir a la bd
+        User user = this.userRepository.findById(tokenDB.getUser().getId())
+                .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado en la activación"));
+        user.setEnabled(true);
+        this.userRepository.save(user);
+
+        tokenDB.setValidatedAt(LocalDateTime.now());
+        this.tokenRepository.save(tokenDB);
+    }
+
+    /* other methods */
+}
+````
+
+Finalmente, en el controlador `AuthenticationController` definimos el endpoint para activar la cuenta:
+
+````java
+
+@Tag(name = "Authentication", description = "API de autenticación de usuario")
+@RequiredArgsConstructor
+@RestController
+@RequestMapping(path = "/api/v1/auth")
+public class AuthenticationController {
+
+    private final AuthenticationService authenticationService;
+
+    /* other methods */
+
+    @GetMapping(path = "/activate-account")
+    public void confirm(@RequestParam String token) throws MessagingException {
+        this.authenticationService.activateAccount(token);
     }
 
 }
