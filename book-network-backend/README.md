@@ -2032,3 +2032,32 @@ public class GlobalExceptionHandler {
     }
 }
 ````
+
+## Probando el manejo de excepciones
+
+Levantamos la aplicación y ejecutamos los siguientes request, veamos que la aplicación nos está validando correctamente:
+
+````bash
+$ curl -v -X POST -H "Content-Type: application/json" -d "{\"email\": \"martin@gmail.com\", \"password\": \"clave12345\"}" http://localhost:8080/api/v1/auth/authenticate | jq
+>
+< HTTP/1.1 401
+<
+{
+  "businessErrorCode": 304,
+  "businessErrorDescription": "Usuario y/o contraseña es incorrecta",
+  "error": "Usuario y/o contraseña es incorrecta"
+}
+````
+
+````bash
+$ curl -v -X POST -H "Content-Type: application/json" -d "{\"firstName\": \"\", \"email\": \"rosita@gmail.com\", \"password\": \"12345678\"}" http://localhost:8080/api/v1/auth/register | jq
+>
+< HTTP/1.1 400
+<
+{
+  "validationErrors": [
+    "El nombre es obligatorio",
+    "El apellido es obligatorio"
+  ]
+}
+````
