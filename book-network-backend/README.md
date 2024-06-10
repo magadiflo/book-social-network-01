@@ -1376,3 +1376,118 @@ application:
     frontend:
       activation-url: http://localhost:4200/activate-account
 ````
+
+## Probando el registro de usuario y envío de email
+
+Antes de ejecutar la aplicación para testear el registro del usuario y el envío del email, necesitamos registrar el rol
+`USER` que por defecto deberá tener todo usuario cuando se registre en el sistema.
+
+Para eso, en la clase principal creamos el `@Bean CommandLineRunner` para poder crear el rol `USER` y guardarlo en la
+base de datos.
+
+````java
+
+@EnableAsync
+@EnableJpaAuditing
+@SpringBootApplication
+public class BookNetworkBackendApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(BookNetworkBackendApplication.class, args);
+    }
+
+    @Bean
+    public CommandLineRunner run(RoleRepository roleRepository) {
+        return args -> {
+            if (roleRepository.findByName("USER").isEmpty()) {
+                Role role = Role.builder().name("USER").build();
+                roleRepository.save(role);
+            }
+        };
+    }
+
+}
+````
+
+Listo, ahora sí realicemos el registro de un usuario y observemos que se registra en la base de datos y se envía el
+correo con el código de activación.
+
+**NOTA**
+> Es importante recordar que estamos trabajando con `docker compose`, así que debemos tener levantado en primer lugar
+> los contenedores de la base de datos de `postgres` y el del `maildev` para emular el servidor de recepción de correo.
+
+````bash
+$ curl -v -X POST -H "Content-Type: application/json" -d "{\"firstName\": \"Milagros\", \"lastName\": \"Diaz\", \"email\": \"milagros@gmail.com\", \"password\": \"12345678\"}" http://localhost:8080/api/v1/auth/register | jq
+>
+< HTTP/1.1 202
+< Vary: Origin
+< Vary: Access-Control-Request-Method
+< Vary: Access-Control-Request-Headers
+< X-Content-Type-Options: nosniff
+< X-XSS-Protection: 0
+< Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+< Pragma: no-cache
+< Expires: 0
+< X-Frame-Options: DENY
+< Content-Length: 0
+< Date: Mon, 10 Jun 2024 04:10:35 GMT
+<
+````
+
+Observamos que el código retornado es el código `HTTP 202 Accepted` indicándonos que *el servidor ha aceptado la
+solicitud de tu navegador, pero aún la está procesando. La solicitud puede, en última instancia, dar lugar o no a una
+respuesta completa.*
+
+Revisamos la base de datos ingresando al contenedor de docker `c-postgres-bsn`:
+
+````bash
+$ docker container exec -it c-postgres-bsn /bin/sh
+/ # psql -U magadiflo -d db_book_social_network
+psql (15.2)
+Type "help" for help.
+
+db_book_social_network=# \dt
+            List of relations
+ Schema |    Name     | Type  |   Owner
+--------+-------------+-------+-----------
+ public | roles       | table | magadiflo
+ public | tokens      | table | magadiflo
+ public | users       | table | magadiflo
+ public | users_roles | table | magadiflo
+(4 rows)
+
+db_book_social_network=# SELECT * FROM roles;
+ id |        created_date        | last_modified_date | name
+----+----------------------------+--------------------+------
+  1 | 2024-06-09 22:55:02.196783 |                    | USER
+(1 row)
+
+db_book_social_network=# SELECT * FROM users;
+ id | account_locked |        created_date        | date_of_birth |       email        | enabled | first_name | last_modified_date | last_name |                           password
+----+----------------+----------------------------+---------------+--------------------+---------+------------+--------------------+-----------+--------------------------------------------------------------
+  1 | f              | 2024-06-09 23:10:35.555767 |               | milagros@gmail.com | f       | Milagros   |                    | Diaz      | $2a$10$NlmuwPQdn1wy0V.zss9JLOu3sv5Y2xAEf/8NCphd5aY.OMYIWcb12
+(1 row)
+
+db_book_social_network=# SELECT * FROM users_roles;
+ user_id | role_id
+---------+---------
+       1 |       1
+(1 row)
+
+db_book_social_network=# SELECT * FROM tokens;
+ id |         created_at         |         expires_at         | token  | validated_at | user_id
+----+----------------------------+----------------------------+--------+--------------+---------
+  1 | 2024-06-09 23:10:35.594157 | 2024-06-09 23:20:35.594157 | 118161 |              |       1
+(1 row)
+
+db_book_social_network=#
+````
+
+Recordemos que estamos usando un servidor de correo `maildev` levantado en el contenedor de docker, así que
+accedemos a él mediante el navegador para ver el correo que se envió junto al código de activación.
+
+![05.send-email-test.png](assets/05.send-email-test.png)
+
+Observemos que el código de activación que recibimos en el correo es el mismo que tenemos almacenado en la
+tabla `tokens` de la base de datos.
+
