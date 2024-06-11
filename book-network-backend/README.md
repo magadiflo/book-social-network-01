@@ -2558,3 +2558,108 @@ public class BookNetworkBackendApplication {
     /* other bean */
 }
 ````
+
+## Implementa el método save de Book
+
+Empezaremos creando el controlador:
+
+````java
+
+@Tag(name = "Book", description = "API de Book")
+@RequiredArgsConstructor
+@RestController
+@RequestMapping(path = "/api/v1/books")
+public class BookController {
+
+    private final BookService bookService;
+
+    @PostMapping
+    public ResponseEntity<Long> saveBook(@Valid @RequestBody BookRequest request, Authentication authentication) {
+        return new ResponseEntity<>(this.bookService.save(request, authentication), HttpStatus.CREATED);
+    }
+}
+````
+
+Es importante observar que por parámetro estamos inyectando la interfaz `Authentication`. Recordemos además, que en
+cada petición al backend, la autenticación de nuestro usuario será almacenado en el `SecurityContext`, desde donde
+luego obtendremos la inyección que vemos en el método anterior.
+
+Necesitamos el `Authentication`, ya que la entidad `Book` necesita almacenar en una de sus columnas la clave foránea
+del usuario. Y precisamente el `User` lo obtendremos de la `Authentication`.
+
+Ahora, vamos a crear el record `BookRequest`. Este record incluirá el `id`, ya que lo usaremos tanto para la
+actualización como para el guardado de la entidad.
+
+````java
+public record BookRequest(Long id,
+
+                          @NotBlank(message = "100")
+                          String title,
+
+                          @NotBlank(message = "101")
+                          String authorName,
+
+                          @NotBlank(message = "102")
+                          String isbn,
+
+                          @NotBlank(message = "103")
+                          String synopsis,
+
+                          boolean shareable) {
+}
+````
+
+Es importante notar que en las propiedades `message` de las anotaciones hemos definido un número distinto. Esto es
+porque en el frontend definiremos una especia de `diccionario de mensajes` para mostrar un mensaje en función del
+código.
+
+Ahora crearemos la clase de servicio donde implementaremos la lógica para guardar un book. Hay que tener en cuenta
+que como la entidad `Book` se relaciona con la entidad `User`, debemos pasarle a la entidad `Book` la instancia de
+la entidad `User` obtenida del `Authentication`.
+
+````java
+
+@RequiredArgsConstructor
+@Service
+public class BookService {
+
+    private final BookRepository bookRepository;
+    private final BookMapper bookMapper;
+
+    public Long save(BookRequest request, Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        Book book = this.bookMapper.toBook(request);
+        book.setOwner(user);
+        return this.bookRepository.save(book).getId();
+    }
+}
+````
+
+La clase de servicio anterior utiliza una clase mapper que hemos creado para convertir el record obtenido en el request
+a un entity:
+
+````java
+
+@Component
+public class BookMapper {
+    public Book toBook(BookRequest request) {
+        return Book.builder()
+                .id(request.id())
+                .title(request.title())
+                .authorName(request.authorName())
+                .isbn(request.isbn())
+                .synopsis(request.synopsis())
+                .archived(false)
+                .shareable(request.shareable())
+                .build();
+    }
+}
+````
+
+Además, la clase de servicio llama al repositorio `BookRepository` para finalizar con el registro del book en la base
+de datos.
+
+````java
+public interface BookRepository extends JpaRepository<Book, Long> {
+}
+````
