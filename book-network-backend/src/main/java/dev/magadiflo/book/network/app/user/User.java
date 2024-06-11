@@ -1,5 +1,7 @@
 package dev.magadiflo.book.network.app.user;
 
+import dev.magadiflo.book.network.app.book.Book;
+import dev.magadiflo.book.network.app.history.BookTransactionHistory;
 import dev.magadiflo.book.network.app.role.Role;
 import jakarta.persistence.*;
 import lombok.*;
@@ -56,6 +58,12 @@ public class User implements UserDetails, Principal {
     )
     @ManyToMany(fetch = FetchType.EAGER)
     private List<Role> roles;
+
+    @OneToMany(mappedBy = "owner")
+    private List<Book> books;
+
+    @OneToMany(mappedBy = "user")
+    private List<BookTransactionHistory> histories;
 
     @Override
     public String getName() {

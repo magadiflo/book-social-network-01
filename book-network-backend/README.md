@@ -2336,3 +2336,115 @@ public class BookTransactionHistory extends BaseEntity {
     private boolean returnApproved;
 }
 ````
+
+## Agrega relaciones entre las entidades
+
+Teniendo en cuenta el diagrama de clases mostrado en el apartado inicial, vamos a empezar a asociar las distintas
+entidades usando las anotaciones de jpa/hibernate.
+
+````java
+
+@Getter
+@Setter
+@SuperBuilder
+@NoArgsConstructor
+@AllArgsConstructor
+@Entity
+@Table(name = "feedbacks")
+public class Feedback extends BaseEntity {
+    /* properties */
+
+    @JoinColumn(name = "book_id")
+    @ManyToOne
+    private Book book;
+}
+````
+
+````java
+
+@Getter
+@Setter
+@SuperBuilder
+@NoArgsConstructor
+@AllArgsConstructor
+@Entity
+@Table(name = "books")
+public class Book extends BaseEntity {
+    /* properties */
+
+    @JoinColumn(name = "owner_id")
+    @ManyToOne
+    private User owner;
+
+    @OneToMany(mappedBy = "book")
+    private List<Feedback> feedbacks;
+
+    @OneToMany(mappedBy = "book")
+    private List<BookTransactionHistory> histories;
+}
+````
+
+````java
+
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Entity
+@Table(name = "users")
+@EntityListeners(AuditingEntityListener.class)
+public class User implements UserDetails, Principal {
+
+    /* properties */
+
+    @JoinTable(
+            name = "users_roles",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id"),
+            uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "role_id"})
+    )
+    @ManyToMany(fetch = FetchType.EAGER)
+    private List<Role> roles;
+
+    @OneToMany(mappedBy = "owner")
+    private List<Book> books;
+
+    @OneToMany(mappedBy = "user")
+    private List<BookTransactionHistory> histories;
+
+    /* other methods */
+}
+````
+
+````java
+
+@Getter
+@Setter
+@SuperBuilder
+@NoArgsConstructor
+@AllArgsConstructor
+@Entity
+@Table(name = "book_transaction_history")
+public class BookTransactionHistory extends BaseEntity {
+    /* properties */
+
+    @JoinColumn(name = "user_id")
+    @ManyToOne
+    private User user;
+
+    @JoinColumn(name = "book_id")
+    @ManyToOne
+    private Book book;
+}
+````
+
+Si analizamos bien, tenemos una relación de muchos a muchos entre `Book` y `User`, pero como
+menciona el tutor, queremos agregar a la relación algunos atributos adicionales, así que para facilitarnos el trabajo
+diremos que la tabla intermedia `book_transaction_history` será nuestra entidad `BookTransactionHistory`, al que le
+agregaremos los atributos adicionales y quien será tratado como una entidad para realizar consultas, operaciones, etc.
+
+Luego de relacionar todas las entidades, ejecutaremos la aplicación y veremos cómo es que se han construido las tablas
+en la base de datos. A continuación se muestran las tablas generadas y asociadas entre ellas:
+
+![10.relationships_between_entities.png](assets/10.relationships_between_entities.png)
