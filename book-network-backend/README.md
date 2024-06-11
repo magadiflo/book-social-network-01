@@ -2319,3 +2319,20 @@ public class Feedback extends BaseEntity {
     private String comment;
 }
 ````
+
+## Crea la entidad BookTransactionHistory
+
+````java
+
+@Getter
+@Setter
+@SuperBuilder
+@NoArgsConstructor
+@AllArgsConstructor
+@Entity
+@Table(name = "book_transaction_history")
+public class BookTransactionHistory extends BaseEntity {
+    private boolean returned;
+    private boolean returnApproved;
+}
+````
