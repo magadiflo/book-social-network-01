@@ -2215,3 +2215,107 @@ public class Feedback {
     private Long lastModifiedBy;
 }
 ````
+
+## Usa herencia y refactoriza el código
+
+En este apartado vamos a refactorizar las clases de entidad porque hay muchos atributos y anotaciones que se están
+repitiendo. Para eso, crearemos una clase base y cada entidad heredará de la clase base.
+
+A continuación se muestra la clase base `BaseEntity` que albergará todos los elementos comunes entre las entidades,
+tanto el identificador como las propiedades relacionadas con la auditoría, de esa manera dejaremos las entidades
+limpias:
+
+````java
+
+@Getter
+@Setter
+@SuperBuilder // Lo usamos cuando estamos trabajando con herencia
+@NoArgsConstructor
+@AllArgsConstructor
+@MappedSuperclass // Para que las entidades que hereden de esta clase mapeen los atributos definidos aquí
+@EntityListeners(AuditingEntityListener.class)
+public class BaseEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @CreatedDate
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdDate;
+
+    @LastModifiedDate
+    @Column(insertable = false)
+    private LocalDateTime lastModifiedDate;
+
+    @CreatedBy
+    @Column(nullable = false, updatable = false)
+    private Long createdBy; // Del tipo Long, porque la clave primaria de la entidad User la definimos como Long
+
+    @LastModifiedBy
+    @Column(insertable = false)
+    private Long lastModifiedBy; // Del tipo Long, porque la clave primaria de la entidad User la definimos como Long
+}
+````
+
+**DONDE**
+
+- `@SuperBuilder`, se utiliza para generar un patrón de diseño `Builder` que también admite `herencia`. Esto es
+  especialmente útil cuando tienes clases con jerarquías y deseas que las clases derivadas tengan sus propios
+  constructores de tipo `Builder` que incluyan los campos de la clase base.
+- Tanto la clase base como las clases derivadas deben tener la anotación `@SuperBuilder` para que la funcionalidad se
+  propague correctamente a través de la jerarquía de herencia. Esto permite que cada clase tenga su propio builder que
+  incluya los campos de la clase base y los de la clase derivada.
+- Si solo anotaras la clase derivada con `@SuperBuilder` y no la clase base, los campos de la clase base no estarían
+  disponibles en el builder de la clase derivada. Por eso es necesario que ambas clases tengan la
+  anotación `@SuperBuilder`.
+
+
+- `@MappedSuperclass`, es una anotación de JPA (Java Persistence API) que se utiliza en el contexto de la persistencia
+  de datos en bases de datos relacionales. La anotación `@MappedSuperclass` se aplica a una clase para indicar que sus
+  propiedades se deben heredar por las clases hijas, pero que no debe ser una entidad en sí misma.
+- Cuando se marca una clase como `@MappedSuperclass`, esta clase no se mapea a una tabla en la base de datos. Sin
+  embargo, sus atributos se heredan y se mapean a las columnas en las tablas de las entidades hijas.
+
+**Comparación de `@SuperBuilder` con `@Builder`**
+
+- `@Builder` no soporta herencia de forma nativa. Si usas `@Builder` en una clase base, las clases derivadas no
+  heredarán el constructor tipo Builder.
+- `@SuperBuilder` está diseñado específicamente para escenarios de herencia y proporciona una forma más intuitiva y
+  natural de manejar constructores tipo Builder en estas situaciones.
+
+Ahora que ya tenemos nuestra clase base, refactorizamos la entidad `Book` y `Feedback`:
+
+````java
+
+@Getter
+@Setter
+@SuperBuilder
+@NoArgsConstructor
+@AllArgsConstructor
+@Entity
+@Table(name = "books")
+public class Book extends BaseEntity {
+    private String title;
+    private String authorName;
+    private String isbn;
+    private String synopsis;
+    private String bookCover;
+    private boolean archived;
+    private boolean shareable;
+}
+````
+
+````java
+
+@Getter
+@Setter
+@SuperBuilder
+@NoArgsConstructor
+@AllArgsConstructor
+@Entity
+@Table(name = "feedbacks")
+public class Feedback extends BaseEntity {
+    private Double note;
+    private String comment;
+}
+````
