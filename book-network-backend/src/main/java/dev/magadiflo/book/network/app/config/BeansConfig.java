@@ -2,6 +2,7 @@ package dev.magadiflo.book.network.app.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.domain.AuditorAware;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -25,6 +26,11 @@ public class BeansConfig {
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
+    }
+
+    @Bean
+    public AuditorAware<Long> auditorAware() { //El nombre de este método "auditorAware" será colocado en la anotación @EnableJpaAuditing
+        return new ApplicationAuditAware();
     }
 
     @Bean

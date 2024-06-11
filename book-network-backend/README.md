@@ -2448,3 +2448,113 @@ Luego de relacionar todas las entidades, ejecutaremos la aplicación y veremos c
 en la base de datos. A continuación se muestran las tablas generadas y asociadas entre ellas:
 
 ![10.relationships_between_entities.png](assets/10.relationships_between_entities.png)
+
+## Agrega el auditor de aplicaciones consciente: Auditing
+
+Para saber quién creó la entidad, quién la modificó por última vez, es decir, saber el `id` del usuario que debe
+colocarse en los campos `createdBy`  y `lastModifiedBy` necesitamos implementar algo llamado
+`Application Auditor Aware (auditor de aplicaciones consciente)`. El Auditor Application Aware es un mecanismo manejado
+por Spring donde todo lo que debemos hacer es proporcionar información sobre el usuario o cómo podemos obtener
+información sobre el usuario, en nuestro caso decidimos usar el `id` del usuario para almacenarlo en los campos
+`createdBy` y `lastModifiedBy`.
+
+Si observamos la entidad base `BaseEntity` podremos ver que tenemos definido para el tema de auditoría, cuatro
+atributos: 2 del tipo `LocaleDateTime` y 2 del tipo `Long`.
+
+Recordemos que para el tema de auditoría agregamos la anotación `@EntityListeners(AuditingEntityListener.class)` en
+la clase `BaseEntity` y la anotación `@EnableJpaAuditing` en la clase principal de esta aplicación. Pero eso solo
+funciona para las anotaciones `@CreatedDate` y `@LastModifiedDate`, es decir, con esas configuraciones los campos
+del tipo `LocalDateTime` estarán insertando valores automáticamente.
+
+Para las anotaciones `@CreatedBy` y `@LastModifiedBy` necesitamos realizar configuraciones adicionales y la pregunta
+es **¿por qué?**, porque Spring no sabe como obtener el usuario de forma predeterminada, pero en nuestro caso, desde
+que implementamos la seguridad sabemos cómo funciona nuestra aplicación y podemos implementar esto por nuestra propia
+cuenta.
+
+A continuación se muestra, como es que tenemos actualmente nuestra clase `BaseEntity`:
+
+````java
+
+@Getter
+@Setter
+@SuperBuilder // Lo usamos cuando estamos trabajando con herencia
+@NoArgsConstructor
+@AllArgsConstructor
+@MappedSuperclass // Para que las entidades que hereden de esta clase mapeen los atributos definidos aquí
+@EntityListeners(AuditingEntityListener.class)
+public class BaseEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @CreatedDate
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdDate;
+
+    @LastModifiedDate
+    @Column(insertable = false)
+    private LocalDateTime lastModifiedDate;
+
+    @CreatedBy
+    @Column(nullable = false, updatable = false)
+    private Long createdBy; // Del tipo Long, porque la clave primaria de la entidad User la definimos como Long
+
+    @LastModifiedBy
+    @Column(insertable = false)
+    private Long lastModifiedBy; // Del tipo Long, porque la clave primaria de la entidad User la definimos como Long
+}
+````
+
+Para agregar la configuración del `AuditorAware` necesitamos crear una clase que la implemente:
+
+```java
+/**
+ * AuditorAware<Long>, el Long corresponde con el tipo de dato del id del User, esto es porque el id del Usuario
+ * será el que se registre en los campos createdBy y lastModifiedBy de la clase BaseEntity.
+ */
+public class ApplicationAuditAware implements AuditorAware<Long> {
+    @Override
+    public Optional<Long> getCurrentAuditor() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated() || authentication instanceof AnonymousAuthenticationToken) {
+            return Optional.empty();
+        }
+        User userPrincipal = (User) authentication.getPrincipal();
+        return Optional.ofNullable(userPrincipal.getId());
+    }
+}
+```
+
+Luego, en la clase de configuración de Beans, debemos crear un `@Bean` que retorne una instancia de la implementación
+del AuditorAware:
+
+````java
+
+@Configuration
+public class BeansConfig {
+    /* other beans */
+
+    @Bean
+    public AuditorAware<Long> auditorAware() { //El nombre de este método "auditorAware" será colocado en la anotación @EnableJpaAuditing
+        return new ApplicationAuditAware();
+    }
+}
+````
+
+Para finalizar la configuración del AuditorAware, necesitamos ir a la clase principal donde tenemos la anotación
+`@EnableJpaAuditing` para agregarle el nombre del método del @Bean que configuramos del AuditorAware.
+
+````java
+
+@EnableAsync
+@EnableJpaAuditing(auditorAwareRef = "auditorAware")//"auditorAware", nombre del método del @Bean auditorAware
+@SpringBootApplication
+public class BookNetworkBackendApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(BookNetworkBackendApplication.class, args);
+    }
+
+    /* other bean */
+}
+````

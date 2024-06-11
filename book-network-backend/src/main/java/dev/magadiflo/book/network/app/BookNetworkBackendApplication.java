@@ -10,7 +10,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.scheduling.annotation.EnableAsync;
 
 @EnableAsync
-@EnableJpaAuditing
+@EnableJpaAuditing(auditorAwareRef = "auditorAware") //"auditorAware", nombre del método del @Bean auditorAware
 @SpringBootApplication
 public class BookNetworkBackendApplication {
 
