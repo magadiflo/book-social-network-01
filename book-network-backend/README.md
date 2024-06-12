@@ -3257,3 +3257,49 @@ public class GlobalExceptionHandler {
     }
 }
 ````
+
+## Implementa la actualización del status de los books archivados
+
+````java
+
+@Tag(name = "Book", description = "API de Book")
+@RequiredArgsConstructor
+@RestController
+@RequestMapping(path = "/api/v1/books")
+public class BookController {
+
+    private final BookService bookService;
+
+    /* other methods */
+    @PatchMapping(path = "/archived/{bookId}")
+    public ResponseEntity<Long> updateArchivedStatus(@PathVariable Long bookId, Authentication authentication) {
+        return ResponseEntity.ok(this.bookService.updateArchivedStatus(bookId, authentication));
+    }
+}
+````
+
+````java
+
+@RequiredArgsConstructor
+@Service
+public class BookService {
+
+    private final BookRepository bookRepository;
+    private final BookTransactionHistoryRepository transactionHistoryRepository;
+    private final BookMapper bookMapper;
+
+    /* other methods */
+    public Long updateArchivedStatus(Long bookId, Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        Book book = this.bookRepository.findById(bookId)
+                .orElseThrow(() -> new EntityNotFoundException("No se encontró el libro con id " + bookId));
+        // El status del libro solo puede ser actualizado por el dueño del propio libro
+        if (!Objects.equals(book.getOwner().getId(), user.getId())) {
+            throw new OperationNotPermittedException("no puedes actualizar el estado del libro para archivar");
+        }
+        book.setArchived(!book.isArchived());
+        this.bookRepository.save(book);
+        return bookId;
+    }
+}
+````

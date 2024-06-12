@@ -124,4 +124,17 @@ public class BookService {
         this.bookRepository.save(book);
         return bookId;
     }
+
+    public Long updateArchivedStatus(Long bookId, Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        Book book = this.bookRepository.findById(bookId)
+                .orElseThrow(() -> new EntityNotFoundException("No se encontró el libro con id " + bookId));
+        // El status del libro solo puede ser actualizado por el dueño del propio libro
+        if (!Objects.equals(book.getOwner().getId(), user.getId())) {
+            throw new OperationNotPermittedException("no puedes actualizar el estado del libro para archivar");
+        }
+        book.setArchived(!book.isArchived());
+        this.bookRepository.save(book);
+        return bookId;
+    }
 }
