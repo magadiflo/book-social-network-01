@@ -2790,3 +2790,102 @@ public class BookController {
     /* another endpoint */
 }
 ````
+
+## Implementa la búsqueda de todos los books visualizables
+
+Retornaremos al cliente el conjunto de books visualizables usando paginación, pero para eso necesitamos crear una clase
+genérica que envolverá las propiedades de la paginación, es decir no vamos a retornar al cliente directamente el `Page`,
+sino más bien, crearemos una clase que desde el backend nos permitirá seleccionar las propiedades de la paginación a
+retornar.
+
+````java
+
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class PageResponse<T> {
+    private List<T> content;
+    private int number;
+    private int size;
+    private long totalElements;
+    private int totalPages;
+    private boolean first;
+    private boolean last;
+}
+````
+
+Ahora crearemos el repositorio `BookRepository` donde definiremos un método personalizado para recuperar los books
+visualizables:
+
+````java
+public interface BookRepository extends JpaRepository<Book, Long> {
+
+    @Query("""
+            SELECT b
+            FROM Book AS b
+            WHERE b.archived = false AND
+                    b.shareable = true AND
+                    b.owner.id != :userId
+            """)
+    Page<Book> findAllDisplayableBooks(Pageable pageable, Long userId);
+}
+````
+
+En la clase de servicio definiremos el método findAllBooks, pasándole parámetros como el page, size y authentication
+que son enviados desde el controlador:
+
+````java
+
+@RequiredArgsConstructor
+@Service
+public class BookService {
+
+    private final BookRepository bookRepository;
+    private final BookMapper bookMapper;
+
+    public PageResponse<BookResponse> findAllBooks(int page, int size, Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdDate").descending());
+        Page<Book> bookPage = this.bookRepository.findAllDisplayableBooks(pageable, user.getId());
+        List<BookResponse> bookResponses = bookPage.stream()
+                .map(this.bookMapper::toBookResponse)
+                .toList();
+
+        return PageResponse.<BookResponse>builder()
+                .content(bookResponses)
+                .number(bookPage.getNumber())
+                .size(bookPage.getSize())
+                .totalElements(bookPage.getTotalElements())
+                .totalPages(bookPage.getTotalPages())
+                .first(bookPage.isFirst())
+                .last(bookPage.isLast())
+                .build();
+    }
+
+    /* other methods */
+}
+````
+
+Finalmente, definimos el controller junto al endponit para listar los libros que son visibles:
+
+````java
+
+@Tag(name = "Book", description = "API de Book")
+@RequiredArgsConstructor
+@RestController
+@RequestMapping(path = "/api/v1/books")
+public class BookController {
+
+    private final BookService bookService;
+
+    @GetMapping
+    public ResponseEntity<PageResponse<BookResponse>> findAllBooks(@RequestParam(defaultValue = "0", required = false) int page,
+                                                                   @RequestParam(defaultValue = "10", required = false) int size,
+                                                                   Authentication authentication) {
+        return ResponseEntity.ok(this.bookService.findAllBooks(page, size, authentication));
+    }
+    /* other methods */
+}
+````
