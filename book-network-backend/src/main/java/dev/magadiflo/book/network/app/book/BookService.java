@@ -79,6 +79,24 @@ public class BookService {
                 .build();
     }
 
+    public PageResponse<BorrowedBookResponse> findAllReturnedBooks(int page, int size, Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdDate").descending());
+        Page<BookTransactionHistory> allBorrowedBooks = this.transactionHistoryRepository.findAllReturnedBooks(pageable, user.getId());
+        List<BorrowedBookResponse> bookResponses = allBorrowedBooks.stream()
+                .map(this.bookMapper::toBorrowedBookResponse)
+                .toList();
+        return PageResponse.<BorrowedBookResponse>builder()
+                .content(bookResponses)
+                .number(allBorrowedBooks.getNumber())
+                .size(allBorrowedBooks.getSize())
+                .totalElements(allBorrowedBooks.getTotalElements())
+                .totalPages(allBorrowedBooks.getTotalPages())
+                .first(allBorrowedBooks.isFirst())
+                .last(allBorrowedBooks.isLast())
+                .build();
+    }
+
     public BookResponse findById(Long bookId) {
         return this.bookRepository.findById(bookId)
                 .map(this.bookMapper::toBookResponse)

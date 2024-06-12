@@ -3103,3 +3103,82 @@ public interface BookTransactionHistoryRepository extends JpaRepository<BookTran
     Page<BookTransactionHistory> findAllBorrowedBooks(Pageable pageable, Long userId);
 }
 ````
+
+## Implementa el findAllReturnedBooks
+
+Empezamos implementando el controlador con el nuevo endpoint:
+
+````java
+
+@Tag(name = "Book", description = "API de Book")
+@RequiredArgsConstructor
+@RestController
+@RequestMapping(path = "/api/v1/books")
+public class BookController {
+
+    private final BookService bookService;
+
+    /* other methods */
+
+    @GetMapping(path = "/returned")
+    public ResponseEntity<PageResponse<BorrowedBookResponse>> findAllReturnedBooks(@RequestParam(defaultValue = "0", required = false) int page,
+                                                                                   @RequestParam(defaultValue = "10", required = false) int size,
+                                                                                   Authentication authentication) {
+        return ResponseEntity.ok(this.bookService.findAllReturnedBooks(page, size, authentication));
+    }
+    /* other methods */
+}
+````
+
+En la capa de servicio, implementamos un método para la lógica de negocio del endpoint anterior:
+
+````java
+
+@RequiredArgsConstructor
+@Service
+public class BookService {
+
+    private final BookRepository bookRepository;
+    private final BookTransactionHistoryRepository transactionHistoryRepository;
+    private final BookMapper bookMapper;
+
+    /* other methods */
+
+    public PageResponse<BorrowedBookResponse> findAllReturnedBooks(int page, int size, Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdDate").descending());
+        Page<BookTransactionHistory> allBorrowedBooks = this.transactionHistoryRepository.findAllReturnedBooks(pageable, user.getId());
+        List<BorrowedBookResponse> bookResponses = allBorrowedBooks.stream()
+                .map(this.bookMapper::toBorrowedBookResponse)
+                .toList();
+        return PageResponse.<BorrowedBookResponse>builder()
+                .content(bookResponses)
+                .number(allBorrowedBooks.getNumber())
+                .size(allBorrowedBooks.getSize())
+                .totalElements(allBorrowedBooks.getTotalElements())
+                .totalPages(allBorrowedBooks.getTotalPages())
+                .first(allBorrowedBooks.isFirst())
+                .last(allBorrowedBooks.isLast())
+                .build();
+    }
+
+    /* other methods */
+}
+````
+
+Finalmente, en el repositorio `BookTransactionHistoryRepository` creamos un método personalizado:
+
+````java
+public interface BookTransactionHistoryRepository extends JpaRepository<BookTransactionHistory, Long> {
+
+    /* another method */
+
+    @Query("""
+            SELECT history
+            FROM BookTransactionHistory AS history
+            WHERE history.book.owner.id = :userId
+            """)
+    Page<BookTransactionHistory> findAllReturnedBooks(Pageable pageable, Long userId);
+}
+````
+

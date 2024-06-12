@@ -38,6 +38,13 @@ public class BookController {
         return ResponseEntity.ok(this.bookService.findAllBorrowedBooks(page, size, authentication));
     }
 
+    @GetMapping(path = "/returned")
+    public ResponseEntity<PageResponse<BorrowedBookResponse>> findAllReturnedBooks(@RequestParam(defaultValue = "0", required = false) int page,
+                                                                                   @RequestParam(defaultValue = "10", required = false) int size,
+                                                                                   Authentication authentication) {
+        return ResponseEntity.ok(this.bookService.findAllReturnedBooks(page, size, authentication));
+    }
+
 
     @GetMapping(path = "/{bookId}")
     public ResponseEntity<BookResponse> findBookById(@PathVariable Long bookId) {
