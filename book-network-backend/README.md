@@ -2889,3 +2889,93 @@ public class BookController {
     /* other methods */
 }
 ````
+
+## Implementa la búsqueda de todos los books por owner
+
+Iniciamos creando el controlador con el endpoint para consultar los books por su owner. Notar que no enviamos el id del
+owner (del usuario), ya que lo obtendremos de la propia autenticación.
+
+````java
+
+@Tag(name = "Book", description = "API de Book")
+@RequiredArgsConstructor
+@RestController
+@RequestMapping(path = "/api/v1/books")
+public class BookController {
+
+    private final BookService bookService;
+
+    @GetMapping(path = "/owner")
+    public ResponseEntity<PageResponse<BookResponse>> findAllBooksByOwner(@RequestParam(defaultValue = "0", required = false) int page,
+                                                                          @RequestParam(defaultValue = "10", required = false) int size,
+                                                                          Authentication authentication) {
+        return ResponseEntity.ok(this.bookService.findAllBooksByOwner(page, size, authentication));
+    }
+
+    /* other endpoints */
+}
+````
+
+Ahora, antes de implementar la clase de servicio con el método `findAllBooksByOwner` necesitamos crear una clase
+de especificación, para realizar consultas dinámicas. En esta oportunidad no vamos a crear una consulta personalizada
+como se hizo anteriormente, si no más bien utilizaremos la interfaz `Specification<T>` para poder generar una consulta
+dinámica, es decir nos apoyaremos del API de Criteria. Para más información sobre este tema visitar mi propio
+repositorio [spring-data-jpa-specifications](https://github.com/magadiflo/spring-data-jpa-specifications).
+
+A continuación se muestra el método `withOwnerId` que retorna una instancia de `Speficication` encapsulando la lógica
+de predicado basada en criterios. En este caso, estamos igualando el "ownerId" pasado por parámetro con el atributo
+"owner.id":
+
+````java
+public class BookSpecification {
+    public static Specification<Book> withOwnerId(Long ownerId) {
+        return (root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get("owner").get("id"), ownerId);
+    }
+}
+````
+
+A continuación implementamos el método `findAllBooksByOwner` en la clase de servicio:
+
+````java
+
+@RequiredArgsConstructor
+@Service
+public class BookService {
+
+    private final BookRepository bookRepository;
+    private final BookMapper bookMapper;
+
+    /* another method */
+
+    public PageResponse<BookResponse> findAllBooksByOwner(int page, int size, Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdDate").descending());
+        Page<Book> bookPage = this.bookRepository.findAll(BookSpecification.withOwnerId(user.getId()), pageable);
+        List<BookResponse> bookResponses = bookPage.stream()
+                .map(this.bookMapper::toBookResponse)
+                .toList();
+
+        return PageResponse.<BookResponse>builder()
+                .content(bookResponses)
+                .number(bookPage.getNumber())
+                .size(bookPage.getSize())
+                .totalElements(bookPage.getTotalElements())
+                .totalPages(bookPage.getTotalPages())
+                .first(bookPage.isFirst())
+                .last(bookPage.isLast())
+                .build();
+    }
+
+    /* other methods */
+}
+````
+
+Observemos que el método anterior, está usando la clase de especificación que creamos, además, esa especificación la
+estamos usando junto con la interfaz `Pageable` dentro del método `findAll` del `BookRepository`. Para que eso funcione
+es importante extender al repositorio la interfaz `JpaSpecificationExecutor<>`:
+
+````java
+public interface BookRepository extends JpaRepository<Book, Long>, JpaSpecificationExecutor<Book> {
+    /* A method here */
+}
+````
