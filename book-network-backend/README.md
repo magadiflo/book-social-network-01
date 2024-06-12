@@ -3182,3 +3182,78 @@ public interface BookTransactionHistoryRepository extends JpaRepository<BookTran
 }
 ````
 
+## Implementa la actualización del status de los books compartibles
+
+````java
+
+@Tag(name = "Book", description = "API de Book")
+@RequiredArgsConstructor
+@RestController
+@RequestMapping(path = "/api/v1/books")
+public class BookController {
+
+    private final BookService bookService;
+
+    /* other methods */
+
+    @PatchMapping(path = "/shareable/{bookId}")
+    public ResponseEntity<Long> updateShareableStatus(@PathVariable Long bookId, Authentication authentication) {
+        return ResponseEntity.ok(this.bookService.updateShareableStatus(bookId, authentication));
+    }
+}
+````
+
+````java
+
+@RequiredArgsConstructor
+@Service
+public class BookService {
+
+    private final BookRepository bookRepository;
+    private final BookTransactionHistoryRepository transactionHistoryRepository;
+    private final BookMapper bookMapper;
+
+    /* other methods */
+
+    public Long updateShareableStatus(Long bookId, Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        Book book = this.bookRepository.findById(bookId)
+                .orElseThrow(() -> new EntityNotFoundException("No se encontró el libro con id " + bookId));
+        // El status del libro solo puede ser actualizado por el dueño del propio libro
+        if (!Objects.equals(book.getOwner().getId(), user.getId())) {
+            throw new OperationNotPermittedException("no puedes actualizar el estado del libro para compartir");
+        }
+        book.setShareable(!book.isShareable());
+        this.bookRepository.save(book);
+        return bookId;
+    }
+}
+````
+
+En la clase de servicio anterior estamos lanzando una excepción personalizada cuando un usuario que no es dueño del
+libro trata de actualizar el atributo shareable. La excepción personalizada la creamos tal como sigue:
+
+````java
+public class OperationNotPermittedException extends RuntimeException {
+    public OperationNotPermittedException(String message) {
+        super(message);
+    }
+}
+````
+
+Finalmente, la excepción personalizada la tenemos que manejar dentro de la clase de excepciones globales:
+
+````java
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+    /* other methods */
+    @ExceptionHandler(OperationNotPermittedException.class)
+    public ResponseEntity<ExceptionResponse> handleException(OperationNotPermittedException exception) {
+        ExceptionResponse exceptionResponse = ExceptionResponse.builder()
+                .error(exception.getMessage())
+                .build();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exceptionResponse);
+    }
+}
+````

@@ -55,4 +55,9 @@ public class BookController {
     public ResponseEntity<Long> saveBook(@Valid @RequestBody BookRequest request, Authentication authentication) {
         return new ResponseEntity<>(this.bookService.save(request, authentication), HttpStatus.CREATED);
     }
+
+    @PatchMapping(path = "/shareable/{bookId}")
+    public ResponseEntity<Long> updateShareableStatus(@PathVariable Long bookId, Authentication authentication) {
+        return ResponseEntity.ok(this.bookService.updateShareableStatus(bookId, authentication));
+    }
 }

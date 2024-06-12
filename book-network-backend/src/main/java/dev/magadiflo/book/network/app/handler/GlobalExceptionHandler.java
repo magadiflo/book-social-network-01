@@ -1,5 +1,6 @@
 package dev.magadiflo.book.network.app.handler;
 
+import dev.magadiflo.book.network.app.exception.OperationNotPermittedException;
 import jakarta.mail.MessagingException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -64,6 +65,14 @@ public class GlobalExceptionHandler {
 
         ExceptionResponse exceptionResponse = ExceptionResponse.builder()
                 .validationErrors(errors)
+                .build();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exceptionResponse);
+    }
+
+    @ExceptionHandler(OperationNotPermittedException.class)
+    public ResponseEntity<ExceptionResponse> handleException(OperationNotPermittedException exception) {
+        ExceptionResponse exceptionResponse = ExceptionResponse.builder()
+                .error(exception.getMessage())
                 .build();
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exceptionResponse);
     }

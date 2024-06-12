@@ -1,6 +1,7 @@
 package dev.magadiflo.book.network.app.book;
 
 import dev.magadiflo.book.network.app.common.PageResponse;
+import dev.magadiflo.book.network.app.exception.OperationNotPermittedException;
 import dev.magadiflo.book.network.app.history.BookTransactionHistory;
 import dev.magadiflo.book.network.app.history.BookTransactionHistoryRepository;
 import dev.magadiflo.book.network.app.user.User;
@@ -14,6 +15,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 
 @RequiredArgsConstructor
 @Service
@@ -108,5 +110,18 @@ public class BookService {
         Book book = this.bookMapper.toBook(request);
         book.setOwner(user);
         return this.bookRepository.save(book).getId();
+    }
+
+    public Long updateShareableStatus(Long bookId, Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        Book book = this.bookRepository.findById(bookId)
+                .orElseThrow(() -> new EntityNotFoundException("No se encontró el libro con id " + bookId));
+        // El status del libro solo puede ser actualizado por el dueño del propio libro
+        if (!Objects.equals(book.getOwner().getId(), user.getId())) {
+            throw new OperationNotPermittedException("no puedes actualizar el estado del libro para compartir");
+        }
+        book.setShareable(!book.isShareable());
+        this.bookRepository.save(book);
+        return bookId;
     }
 }
