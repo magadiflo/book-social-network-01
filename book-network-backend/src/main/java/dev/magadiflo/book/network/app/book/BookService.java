@@ -1,6 +1,8 @@
 package dev.magadiflo.book.network.app.book;
 
 import dev.magadiflo.book.network.app.common.PageResponse;
+import dev.magadiflo.book.network.app.history.BookTransactionHistory;
+import dev.magadiflo.book.network.app.history.BookTransactionHistoryRepository;
 import dev.magadiflo.book.network.app.user.User;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +20,7 @@ import java.util.List;
 public class BookService {
 
     private final BookRepository bookRepository;
+    private final BookTransactionHistoryRepository transactionHistoryRepository;
     private final BookMapper bookMapper;
 
     public PageResponse<BookResponse> findAllBooks(int page, int size, Authentication authentication) {
@@ -55,6 +58,24 @@ public class BookService {
                 .totalPages(bookPage.getTotalPages())
                 .first(bookPage.isFirst())
                 .last(bookPage.isLast())
+                .build();
+    }
+
+    public PageResponse<BorrowedBookResponse> findAllBorrowedBooks(int page, int size, Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdDate").descending());
+        Page<BookTransactionHistory> allBorrowedBooks = this.transactionHistoryRepository.findAllBorrowedBooks(pageable, user.getId());
+        List<BorrowedBookResponse> bookResponses = allBorrowedBooks.stream()
+                .map(this.bookMapper::toBorrowedBookResponse)
+                .toList();
+        return PageResponse.<BorrowedBookResponse>builder()
+                .content(bookResponses)
+                .number(allBorrowedBooks.getNumber())
+                .size(allBorrowedBooks.getSize())
+                .totalElements(allBorrowedBooks.getTotalElements())
+                .totalPages(allBorrowedBooks.getTotalPages())
+                .first(allBorrowedBooks.isFirst())
+                .last(allBorrowedBooks.isLast())
                 .build();
     }
 

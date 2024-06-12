@@ -2979,3 +2979,127 @@ public interface BookRepository extends JpaRepository<Book, Long>, JpaSpecificat
     /* A method here */
 }
 ````
+
+## Implementa la búsqueda de todos los libros prestados
+
+Empezamos definiendo un nuevo endpoint en el controlador `BookController` que nos permitirá mostrar todos los libros
+que han sido prestados para el usuario que está conectado:
+
+````java
+
+@Tag(name = "Book", description = "API de Book")
+@RequiredArgsConstructor
+@RestController
+@RequestMapping(path = "/api/v1/books")
+public class BookController {
+
+    private final BookService bookService;
+
+    /* other endpoints */
+
+    @GetMapping(path = "/borrowed")
+    public ResponseEntity<PageResponse<BorrowedBookResponse>> findAllBorrowedBooks(@RequestParam(defaultValue = "0", required = false) int page,
+                                                                                   @RequestParam(defaultValue = "10", required = false) int size,
+                                                                                   Authentication authentication) {
+        return ResponseEntity.ok(this.bookService.findAllBorrowedBooks(page, size, authentication));
+    }
+
+
+    /* other endpoints */
+}
+````
+
+Implementamos el método del servicio que llamará al repositorio del `BookTransactionHistory`:
+
+````java
+
+@RequiredArgsConstructor
+@Service
+public class BookService {
+
+    private final BookRepository bookRepository;
+    private final BookTransactionHistoryRepository transactionHistoryRepository;
+    private final BookMapper bookMapper;
+
+    /* other methods */
+
+    public PageResponse<BorrowedBookResponse> findAllBorrowedBooks(int page, int size, Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdDate").descending());
+        Page<BookTransactionHistory> allBorrowedBooks = this.transactionHistoryRepository.findAllBorrowedBooks(pageable, user.getId());
+        List<BorrowedBookResponse> bookResponses = allBorrowedBooks.stream()
+                .map(this.bookMapper::toBorrowedBookResponse)
+                .toList();
+        return PageResponse.<BorrowedBookResponse>builder()
+                .content(bookResponses)
+                .number(allBorrowedBooks.getNumber())
+                .size(allBorrowedBooks.getSize())
+                .totalElements(allBorrowedBooks.getTotalElements())
+                .totalPages(allBorrowedBooks.getTotalPages())
+                .first(allBorrowedBooks.isFirst())
+                .last(allBorrowedBooks.isLast())
+                .build();
+    }
+    /* other methods */
+}
+````
+
+Para implementar el método anterior es necesario crear las siguientes clases y repositorios. Empezamos creando la
+clase `BorrowedBookResponse` donde agruparemos propiedades que serán retornadas al cliente. Las propiedades que tendrá
+esta clase estarán conformadas por propiedades del `Book` y del `BookTransactionHistory`:
+
+````java
+
+@Getter
+@Setter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+public class BorrowedBookResponse {
+    private Long id;
+    private String title;
+    private String authorName;
+    private String isbn;
+    private double rate;
+    private boolean returned;
+    private boolean returnApproved;
+}
+````
+
+Definimos un método en la clase `BookMapper` para mapear una entidad `BookTransactionHistory` en una
+clase `BorrowedBookResponse`:
+
+````java
+
+@Component
+public class BookMapper {
+    /* other methods */
+
+    public BorrowedBookResponse toBorrowedBookResponse(BookTransactionHistory history) {
+        return BorrowedBookResponse.builder()
+                .id(history.getBook().getId())
+                .title(history.getBook().getTitle())
+                .authorName(history.getBook().getAuthorName())
+                .isbn(history.getBook().getIsbn())
+                .rate(history.getBook().getRate())
+                .returned(history.isReturned())
+                .returnApproved(history.isReturnApproved())
+                .build();
+    }
+}
+````
+
+Creamos el repositorio de la entidad `BookTransactionHistory` donde definiremos un método personalizado para consultar
+las entidades por el id del usuario:
+
+````java
+public interface BookTransactionHistoryRepository extends JpaRepository<BookTransactionHistory, Long> {
+
+    @Query("""
+            SELECT history
+            FROM BookTransactionHistory AS history
+            WHERE history.user.id = :userId
+            """)
+    Page<BookTransactionHistory> findAllBorrowedBooks(Pageable pageable, Long userId);
+}
+````
