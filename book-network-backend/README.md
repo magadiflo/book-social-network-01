@@ -2663,3 +2663,130 @@ de datos.
 public interface BookRepository extends JpaRepository<Book, Long> {
 }
 ````
+
+## Implementa el método find book by id
+
+Antes de implementar el método `findBookById` vamos a actualizar la entidad `Book` agregándole un método que nos
+permitirá calcular el `rate` de las notas que los usuarios agreguen en la entidad `Feedback`.
+
+````java
+
+@Getter
+@Setter
+@SuperBuilder
+@NoArgsConstructor
+@AllArgsConstructor
+@Entity
+@Table(name = "books")
+public class Book extends BaseEntity {
+    /* other properties */
+
+    @OneToMany(mappedBy = "book")
+    private List<Feedback> feedbacks;
+
+    @Transient
+    public double getRate() {
+        if (this.feedbacks == null || this.feedbacks.isEmpty()) {
+            return 0D;
+        }
+        double rate = this.feedbacks.stream()
+                .mapToDouble(Feedback::getNote)
+                .average()
+                .orElse(0D);
+        return Math.round(rate * 10D) / 10D;
+    }
+}
+````
+
+Necesitamos también, crear una clase que contendrá la información del `Book` que será enviada como respuesta al cliente:
+
+````java
+
+@Getter
+@Setter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+public class BookResponse {
+    private Long id;
+    private String title;
+    private String authorName;
+    private String isbn;
+    private String synopsis;
+    private String owner;
+    private byte[] cover;
+    private double rate;
+    private boolean archived;
+    private boolean shareable;
+}
+````
+
+En la clase `BookMapper` agregaremos otro método que nos permitirá hacer la conversión de una entidad `Book` hacia
+la clase de respuesta `BookResponse`:
+
+````java
+
+@Component
+public class BookMapper {
+    /* another method */
+
+    public BookResponse toBookResponse(Book book) {
+        return BookResponse.builder()
+                .id(book.getId())
+                .title(book.getTitle())
+                .authorName(book.getAuthorName())
+                .isbn(book.getIsbn())
+                .synopsis(book.getSynopsis())
+                .rate(book.getRate())
+                .archived(book.isArchived())
+                .shareable(book.isShareable())
+                .owner(book.getOwner().fullName())
+                // TODO: implement this later
+                //.cover()
+                .build();
+    }
+}
+````
+
+Ahora, en nuestra clase de servicio `BookService` agregaremos el método `findById()` para implementar la lógica de
+búsqueda de un book:
+
+````java
+
+@RequiredArgsConstructor
+@Service
+public class BookService {
+
+    private final BookRepository bookRepository;
+    private final BookMapper bookMapper;
+
+    /* another medhod */
+
+    public BookResponse findById(Long bookId) {
+        return this.bookRepository.findById(bookId)
+                .map(this.bookMapper::toBookResponse)
+                .orElseThrow(() -> new EntityNotFoundException("No se encuentra el libro con el id " + bookId));
+    }
+}
+````
+
+Finalmente, agregamos el endpoint en el controlador `BookController`:
+
+````java
+
+@Tag(name = "Book", description = "API de Book")
+@RequiredArgsConstructor
+@RestController
+@RequestMapping(path = "/api/v1/books")
+public class BookController {
+
+    private final BookService bookService;
+
+    @GetMapping(path = "/{bookId}")
+    public ResponseEntity<BookResponse> findBookById(@PathVariable Long bookId) {
+        return ResponseEntity.ok(this.bookService.findById(bookId));
+    }
+
+    /* another endpoint */
+}
+````
