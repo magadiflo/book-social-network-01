@@ -3382,3 +3382,74 @@ public interface BookTransactionHistoryRepository extends JpaRepository<BookTran
     boolean isAlreadyBorrowedByUser(Long bookId, Long userId);
 }
 ````
+
+## Implementa devolución de libro prestado
+
+````java
+
+@Tag(name = "Book", description = "API de Book")
+@RequiredArgsConstructor
+@RestController
+@RequestMapping(path = "/api/v1/books")
+public class BookController {
+
+    private final BookService bookService;
+
+    /* other methods */
+
+    @PatchMapping(path = "/borrow/return/{bookId}")
+    public ResponseEntity<Long> returnBorrowBook(@PathVariable Long bookId, Authentication authentication) {
+        return ResponseEntity.ok(this.bookService.returnBorrowBook(bookId, authentication));
+    }
+}
+````
+
+````java
+
+@RequiredArgsConstructor
+@Service
+public class BookService {
+
+    private final BookRepository bookRepository;
+    private final BookTransactionHistoryRepository transactionHistoryRepository;
+    private final BookMapper bookMapper;
+
+    /* other methods */
+
+    public Long returnBorrowBook(Long bookId, Authentication authentication) {
+        Book book = this.bookRepository.findById(bookId)
+                .orElseThrow(() -> new EntityNotFoundException("No se encontró el libro con id " + bookId));
+        if (book.isArchived() || !book.isShareable()) {
+            throw new OperationNotPermittedException("El libro solicitado no se puede tomar prestado porque está archivado o no se puede compartir");
+        }
+
+        User user = (User) authentication.getPrincipal();
+        if (Objects.equals(book.getOwner().getId(), user.getId())) {
+            throw new OperationNotPermittedException("No puedes pedir prestado o retornar tu propio libro");
+        }
+
+        BookTransactionHistory bookTransactionHistory = this.transactionHistoryRepository.findByBookIdAndUserId(bookId, user.getId())
+                .orElseThrow(() -> new OperationNotPermittedException("No tomaste prestado este libro"));
+        bookTransactionHistory.setReturned(true);
+
+        return this.transactionHistoryRepository.save(bookTransactionHistory).getId();
+    }
+}
+````
+
+````java
+public interface BookTransactionHistoryRepository extends JpaRepository<BookTransactionHistory, Long> {
+
+    /* other queries */
+
+    @Query("""
+            SELECT history
+            FROM BookTransactionHistory AS history
+            WHERE history.user.id = :userId AND
+                    history.book.id = :bookId AND
+                    history.returned = false AND
+                    history.returnApproved = false
+            """)
+    Optional<BookTransactionHistory> findByBookIdAndUserId(Long bookId, Long userId);
+}
+````

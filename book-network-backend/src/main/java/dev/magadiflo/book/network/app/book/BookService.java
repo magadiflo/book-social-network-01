@@ -165,4 +165,23 @@ public class BookService {
         this.bookRepository.save(book);
         return bookId;
     }
+
+    public Long returnBorrowBook(Long bookId, Authentication authentication) {
+        Book book = this.bookRepository.findById(bookId)
+                .orElseThrow(() -> new EntityNotFoundException("No se encontró el libro con id " + bookId));
+        if (book.isArchived() || !book.isShareable()) {
+            throw new OperationNotPermittedException("El libro solicitado no se puede tomar prestado porque está archivado o no se puede compartir");
+        }
+
+        User user = (User) authentication.getPrincipal();
+        if (Objects.equals(book.getOwner().getId(), user.getId())) {
+            throw new OperationNotPermittedException("No puedes pedir prestado o retornar tu propio libro");
+        }
+
+        BookTransactionHistory bookTransactionHistory = this.transactionHistoryRepository.findByBookIdAndUserId(bookId, user.getId())
+                .orElseThrow(() -> new OperationNotPermittedException("No tomaste prestado este libro"));
+        bookTransactionHistory.setReturned(true);
+
+        return this.transactionHistoryRepository.save(bookTransactionHistory).getId();
+    }
 }

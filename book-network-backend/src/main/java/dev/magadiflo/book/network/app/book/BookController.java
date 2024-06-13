@@ -69,4 +69,9 @@ public class BookController {
     public ResponseEntity<Long> updateArchivedStatus(@PathVariable Long bookId, Authentication authentication) {
         return ResponseEntity.ok(this.bookService.updateArchivedStatus(bookId, authentication));
     }
+
+    @PatchMapping(path = "/borrow/return/{bookId}")
+    public ResponseEntity<Long> returnBorrowBook(@PathVariable Long bookId, Authentication authentication) {
+        return ResponseEntity.ok(this.bookService.returnBorrowBook(bookId, authentication));
+    }
 }
