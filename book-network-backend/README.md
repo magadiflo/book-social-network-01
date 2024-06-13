@@ -3657,3 +3657,54 @@ public class FileStorageService {
     }
 }
 ````
+
+## Lee el file desde una ubicación determinada
+
+Recordemos que en nuestra clase de conversión `BookMapper` tenemos un método que convierte una entidad `Book` a un
+dto `BookResponse`. Este dto tiene un atributo llamado `cover` del tipo `byte[]` que nos falta mapear. Para rellenar
+este campo con el valor de la imagen en byte[], necesitamos crear una clase donde definiremos un método que nos
+permitirá leer la imagen almacenada en el servidor y convertirla a byte[]:
+
+````java
+
+@Slf4j
+public class FileUtils {
+    public static byte[] readFileFromLocation(String fileUrl) {
+        if (StringUtils.isNotBlank(fileUrl)) {
+            try {
+                Path filePath = new File(fileUrl).toPath();
+                return Files.readAllBytes(filePath);
+            } catch (IOException e) {
+                log.warn("No se encontró el archivo en la ruta {}", fileUrl);
+            }
+        }
+        return null;
+    }
+}
+````
+
+Ahora que tenemos la clase de utilidad con el método que nos retorna un byte[] de la imagen, vamos a usarlo para
+rellenar el campo cover del dto BookResponse:
+
+````java
+
+@Component
+public class BookMapper {
+    /* another method */
+    public BookResponse toBookResponse(Book book) {
+        return BookResponse.builder()
+                .id(book.getId())
+                .title(book.getTitle())
+                .authorName(book.getAuthorName())
+                .isbn(book.getIsbn())
+                .synopsis(book.getSynopsis())
+                .rate(book.getRate())
+                .archived(book.isArchived())
+                .shareable(book.isShareable())
+                .owner(book.getOwner().fullName())
+                .cover(FileUtils.readFileFromLocation(book.getBookCover())) //<-- Rellenando campo
+                .build();
+    }
+    /* another method */
+}
+````

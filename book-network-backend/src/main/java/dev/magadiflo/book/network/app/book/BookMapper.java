@@ -1,5 +1,6 @@
 package dev.magadiflo.book.network.app.book;
 
+import dev.magadiflo.book.network.app.file.FileUtils;
 import dev.magadiflo.book.network.app.history.BookTransactionHistory;
 import org.springframework.stereotype.Component;
 
@@ -28,8 +29,7 @@ public class BookMapper {
                 .archived(book.isArchived())
                 .shareable(book.isShareable())
                 .owner(book.getOwner().fullName())
-                // TODO: implement this later
-                //.cover()
+                .cover(FileUtils.readFileFromLocation(book.getBookCover()))
                 .build();
     }
 
