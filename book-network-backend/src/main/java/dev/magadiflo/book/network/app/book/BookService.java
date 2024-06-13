@@ -2,6 +2,7 @@ package dev.magadiflo.book.network.app.book;
 
 import dev.magadiflo.book.network.app.common.PageResponse;
 import dev.magadiflo.book.network.app.exception.OperationNotPermittedException;
+import dev.magadiflo.book.network.app.file.FileStorageService;
 import dev.magadiflo.book.network.app.history.BookTransactionHistory;
 import dev.magadiflo.book.network.app.history.BookTransactionHistoryRepository;
 import dev.magadiflo.book.network.app.user.User;
@@ -13,6 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Objects;
@@ -24,6 +26,7 @@ public class BookService {
     private final BookRepository bookRepository;
     private final BookTransactionHistoryRepository transactionHistoryRepository;
     private final BookMapper bookMapper;
+    private final FileStorageService fileStorageService;
 
     public PageResponse<BookResponse> findAllBooks(int page, int size, Authentication authentication) {
         User user = (User) authentication.getPrincipal();
@@ -202,5 +205,15 @@ public class BookService {
         bookTransactionHistory.setReturnApproved(true);
 
         return this.transactionHistoryRepository.save(bookTransactionHistory).getId();
+    }
+
+    public void uploadBookCoverPicture(Long bookId, MultipartFile file, Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        Book book = this.bookRepository.findById(bookId)
+                .orElseThrow(() -> new EntityNotFoundException("No se encontró el libro con id " + bookId));
+        String bookCover = this.fileStorageService.saveFile(file, user.getId());
+        book.setBookCover(bookCover);
+
+        this.bookRepository.save(book);
     }
 }

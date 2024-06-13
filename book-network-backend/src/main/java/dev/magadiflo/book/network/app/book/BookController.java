@@ -1,6 +1,7 @@
 package dev.magadiflo.book.network.app.book;
 
 import dev.magadiflo.book.network.app.common.PageResponse;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -8,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @Tag(name = "Book", description = "API de Book")
 @RequiredArgsConstructor
@@ -58,6 +60,12 @@ public class BookController {
     @PostMapping(path = "/borrow/{bookId}")
     public ResponseEntity<Long> borrowBook(@PathVariable Long bookId, Authentication authentication) {
         return ResponseEntity.ok(this.bookService.borrowBook(bookId, authentication));
+    }
+
+    @PostMapping(path = "/cover/{bookId}", consumes = "multipart/form-data")
+    public ResponseEntity<Void> uploadBookCoverPicture(@PathVariable Long bookId, @Parameter @RequestPart MultipartFile file, Authentication authentication) {
+        this.bookService.uploadBookCoverPicture(bookId, file, authentication);
+        return ResponseEntity.accepted().build();
     }
 
     @PatchMapping(path = "/shareable/{bookId}")

@@ -3522,3 +3522,138 @@ public interface BookTransactionHistoryRepository extends JpaRepository<BookTran
     Optional<BookTransactionHistory> findByBookIdAndOwnerId(Long bookId, Long userId);
 }
 ````
+
+## Implementa la carga de imágenes de portada de libros
+
+Empezaremos configurando la ruta en el archivo `application-dev.yml`:
+
+````yml
+application:
+  file:
+    upload:
+      photos-output-path: ./uploads
+````
+
+Definimos el controlador con el siguiente endpoint:
+
+````java
+
+@Tag(name = "Book", description = "API de Book")
+@RequiredArgsConstructor
+@RestController
+@RequestMapping(path = "/api/v1/books")
+public class BookController {
+
+    private final BookService bookService;
+
+    /* other methods */
+
+    @PostMapping(path = "/cover/{bookId}", consumes = "multipart/form-data")
+    public ResponseEntity<Void> uploadBookCoverPicture(@PathVariable Long bookId, @Parameter @RequestPart MultipartFile file, Authentication authentication) {
+        this.bookService.uploadBookCoverPicture(bookId, file, authentication);
+        return ResponseEntity.accepted().build();
+    }
+}
+````
+
+**DONDE**
+
+- `@Parameter`, es una anotación de swagger importado del siguiente paquete `io.swagger.v3.oas.annotations`. Esta
+  anotación se utiliza en el contexto de la documentación de APIs con OpenAPI (anteriormente conocida como Swagger).
+- El propósito de `@Parameter` es describir detalles de los parámetros que se pasan a los métodos de tu controlador,
+  facilitando la generación de la documentación de tu API. En tu caso, proporciona información adicional sobre el
+  parámetro `file` de tipo `MultipartFile`.
+
+
+- La anotación `@RequestPart` se utiliza en Spring Boot para indicar que un parámetro de un método del controlador debe
+  ser extraído de una parte específica del cuerpo de una solicitud multipart (por ejemplo, un archivo cargado). Es
+  particularmente útil cuando trabajas con solicitudes que contienen datos multipart, como archivos subidos y otros
+  datos de formulario al mismo tiempo.
+- En el contexto de tu método `uploadBookCoverPicture`, la anotación `@RequestPart` se aplica al parámetro `file`, que
+  es de tipo `MultipartFile`. Esto le dice a Spring que debe mapear una parte específica del cuerpo de la solicitud
+  multipart a ese parámetro.
+
+Ahora, en la clase de servicio implementamos el método que definirá la lógica para poder almacenar la imagen en el
+servidor y su path en la base de datos. Para eso luego nos vamos a apoyar de una clase de servicio al que le llamaremos
+`FileStorageService`:
+
+````java
+
+@RequiredArgsConstructor
+@Service
+public class BookService {
+
+    private final BookRepository bookRepository;
+    private final BookTransactionHistoryRepository transactionHistoryRepository;
+    private final BookMapper bookMapper;
+    private final FileStorageService fileStorageService;
+
+    /* other methods */
+
+    public void uploadBookCoverPicture(Long bookId, MultipartFile file, Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        Book book = this.bookRepository.findById(bookId)
+                .orElseThrow(() -> new EntityNotFoundException("No se encontró el libro con id " + bookId));
+        String bookCover = this.fileStorageService.saveFile(file, user.getId());
+        book.setBookCover(bookCover);
+
+        this.bookRepository.save(book);
+    }
+}
+````
+
+Finalmente, se muestra a continuación nuestra clase que tendrá la función de subir la imagen a una ruta específica
+dentro del servidor:
+
+````java
+
+@Slf4j
+@RequiredArgsConstructor
+@Service
+public class FileStorageService {
+
+    @Value("${application.file.upload.photos-output-path}")
+    private String fileUploadPath;
+
+    public String saveFile(@Nonnull MultipartFile file, @Nonnull Long userId) {
+        final String fileUploadSubPath = "users" + File.separator + userId;
+        return this.uploadFile(file, fileUploadSubPath);
+    }
+
+    private String uploadFile(@Nonnull MultipartFile file, @Nonnull String fileUploadSubPath) {
+        final String finalUploadPath = this.fileUploadPath + File.separator + fileUploadSubPath;
+        File targetFolder = new File(finalUploadPath);
+        if (!targetFolder.exists()) {
+            boolean folderCreated = targetFolder.mkdirs();
+
+            if (!folderCreated) {
+                log.warn("Falló al crear el folder de destino (target)");
+                return null;
+            }
+        }
+
+        final String fileExtension = this.getFileExtension(file.getOriginalFilename());
+        String targetFilePath = finalUploadPath + File.separator + System.currentTimeMillis() + "." + fileExtension;
+        Path targetPath = Paths.get(targetFilePath);
+
+        try {
+            Files.write(targetPath, file.getBytes());
+            log.info("Archivo guardado en {}", targetFilePath);
+            return targetFilePath;
+        } catch (IOException e) {
+            log.error("El archivo no pudo ser guardado", e);
+        }
+        return null;
+    }
+
+    private String getFileExtension(String filename) {
+        if (filename == null || filename.isEmpty()) return "";
+
+        int lastDotIndex = filename.lastIndexOf(".");
+
+        if (lastDotIndex == -1) return "";
+
+        return filename.substring(lastDotIndex + 1).toLowerCase();
+    }
+}
+````
