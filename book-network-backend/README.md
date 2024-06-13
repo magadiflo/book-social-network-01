@@ -3792,3 +3792,106 @@ public interface FeebackRepository extends JpaRepository<Feedback, Long> {
 }
 ````
 
+## Implementa en listado de todos los feedbacks
+
+````java
+
+@Tag(name = "Feedback", description = "API Rest de la entidad Feedback")
+@RequiredArgsConstructor
+@RestController
+@RequestMapping(path = "/api/v1/feedbacks")
+public class FeedbackController {
+
+    private final FeedbackService feedbackService;
+
+    @GetMapping(path = "/book/{bookId}")
+    public ResponseEntity<PageResponse<FeedbackResponse>> findAllFeedbackByBook(@PathVariable Long bookId,
+                                                                                @RequestParam(defaultValue = "0") int page,
+                                                                                @RequestParam(defaultValue = "10") int size,
+                                                                                Authentication authentication) {
+        return ResponseEntity.ok(this.feedbackService.findAllFeedbackByBook(bookId, page, size, authentication));
+    }
+
+    /* another method */
+}
+````
+
+Si observamos los parámetros del método anterior, veremos que la anotación `@RequestParam` está definida de la
+siguiente manera `@RequestParam(defaultValue = "0") int page`, es decir, no estamos usando el atributo `required` tal
+como lo hacíamos en los métodos del Book Controller `@RequestParam(defaultValue = "0", required = false) int page`,
+esto no es ningún problema, ya que cuando se usa el atributo `defaultValue`, implícitamente se establece el atributo
+`required` en `false`.
+
+````java
+
+@RequiredArgsConstructor
+@Service
+public class FeedbackService {
+
+    private final BookRepository bookRepository;
+    private final FeebackRepository feebackRepository;
+    private final FeedbackMapper feedbackMapper;
+
+    /* other methods */
+    public PageResponse<FeedbackResponse> findAllFeedbackByBook(Long bookId, int page, int size, Authentication authentication) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdDate").descending());
+        User user = (User) authentication.getPrincipal();
+        Page<Feedback> feedbackPage = this.feebackRepository.findAllByBookId(bookId, pageable);
+        List<FeedbackResponse> feedbackResponses = feedbackPage.stream()
+                .map(feedback -> this.feedbackMapper.toFeedbackResponse(feedback, user.getId()))
+                .toList();
+        return PageResponse.<FeedbackResponse>builder()
+                .content(feedbackResponses)
+                .number(feedbackPage.getNumber())
+                .size(feedbackPage.getSize())
+                .totalElements(feedbackPage.getTotalElements())
+                .totalPages(feedbackPage.getTotalPages())
+                .first(feedbackPage.isFirst())
+                .last(feedbackPage.isLast())
+                .build();
+    }
+}
+````
+
+````java
+public interface FeebackRepository extends JpaRepository<Feedback, Long> {
+    @Query("""
+            SELECT f
+            FROM Feedback AS f
+            WHERE f.book.id = :bookId
+            """)
+    Page<Feedback> findAllByBookId(Long bookId, Pageable pageable);
+}
+````
+
+````java
+
+@Component
+public class FeedbackMapper {
+
+    /* another method */
+
+    public FeedbackResponse toFeedbackResponse(Feedback feedback, Long userId) {
+        boolean itIsOwnFeedback = Objects.equals(feedback.getBook().getOwner().getId(), userId);
+        return FeedbackResponse.builder()
+                .note(feedback.getNote())
+                .comment(feedback.getComment())
+                .ownFeedback(itIsOwnFeedback)
+                .build();
+    }
+}
+````
+
+````java
+
+@Getter
+@Setter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+public class FeedbackResponse {
+    private Double note;
+    private String comment;
+    private boolean ownFeedback;
+}
+````
