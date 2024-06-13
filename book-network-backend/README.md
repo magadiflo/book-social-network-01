@@ -3708,3 +3708,87 @@ public class BookMapper {
     /* another method */
 }
 ````
+
+## Implementando el save de la entidad Feedback
+
+````java
+
+@Tag(name = "Feedback", description = "API Rest de la entidad Feedback")
+@RequiredArgsConstructor
+@RestController
+@RequestMapping(path = "/api/v1/feedbacks")
+public class FeedbackController {
+
+    private final FeedbackService feedbackService;
+
+    @PostMapping
+    public ResponseEntity<Long> saveFeedback(@Valid @RequestBody FeedbackRequest request, Authentication authentication) {
+        return new ResponseEntity<>(this.feedbackService.save(request, authentication), HttpStatus.CREATED);
+    }
+
+}
+````
+
+````java
+
+@RequiredArgsConstructor
+@Service
+public class FeedbackService {
+
+    private final BookRepository bookRepository;
+    private final FeebackRepository feebackRepository;
+    private final FeedbackMapper feedbackMapper;
+
+    public Long save(FeedbackRequest request, Authentication authentication) {
+        Book book = this.bookRepository.findById(request.bookId())
+                .orElseThrow(() -> new EntityNotFoundException("No se encontró el libro con id " + request.bookId()));
+
+        if (book.isArchived() || !book.isShareable()) {
+            throw new OperationNotPermittedException("No puedes dar comentarios sobre un libro archivado o que no se puede compartir");
+        }
+
+        User user = (User) authentication.getPrincipal();
+        if (Objects.equals(book.getOwner().getId(), user.getId())) {
+            throw new OperationNotPermittedException("No puedes dar comentarios sobre tu propio libro");
+        }
+
+        Feedback feedback = this.feedbackMapper.toFeedback(request);
+        return this.feebackRepository.save(feedback).getId();
+    }
+}
+````
+
+````java
+
+@Component
+public class FeedbackMapper {
+
+    public Feedback toFeedback(FeedbackRequest request) {
+        return Feedback.builder()
+                .note(request.note())
+                .comment(request.comment())
+                .book(Book.builder().id(request.bookId()).build())
+                .build();
+    }
+}
+````
+
+````java
+public record FeedbackRequest(@Positive(message = "200")
+                              @Min(value = 0, message = "201")
+                              @Max(value = 5, message = "202")
+                              Double note,
+
+                              @NotBlank(message = "203")
+                              String comment,
+
+                              @NotNull(message = "204")
+                              Long bookId) {
+}
+````
+
+````java
+public interface FeebackRepository extends JpaRepository<Feedback, Long> {
+}
+````
+
