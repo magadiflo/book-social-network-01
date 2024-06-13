@@ -3221,7 +3221,7 @@ public class BookService {
                 .orElseThrow(() -> new EntityNotFoundException("No se encontró el libro con id " + bookId));
         // El status del libro solo puede ser actualizado por el dueño del propio libro
         if (!Objects.equals(book.getOwner().getId(), user.getId())) {
-            throw new OperationNotPermittedException("no puedes actualizar el estado del libro para compartir");
+            throw new OperationNotPermittedException("No puedes actualizar el estado del libro para compartir");
         }
         book.setShareable(!book.isShareable());
         this.bookRepository.save(book);
@@ -3295,11 +3295,90 @@ public class BookService {
                 .orElseThrow(() -> new EntityNotFoundException("No se encontró el libro con id " + bookId));
         // El status del libro solo puede ser actualizado por el dueño del propio libro
         if (!Objects.equals(book.getOwner().getId(), user.getId())) {
-            throw new OperationNotPermittedException("no puedes actualizar el estado del libro para archivar");
+            throw new OperationNotPermittedException("No puedes actualizar el estado del libro para archivar");
         }
         book.setArchived(!book.isArchived());
         this.bookRepository.save(book);
         return bookId;
     }
+}
+````
+
+## Implementar la característica de préstamo de libro
+
+````java
+
+@Tag(name = "Book", description = "API de Book")
+@RequiredArgsConstructor
+@RestController
+@RequestMapping(path = "/api/v1/books")
+public class BookController {
+
+    private final BookService bookService;
+    /* other methods */
+
+    @PostMapping(path = "/borrow/{bookId}")
+    public ResponseEntity<Long> borrowBook(@PathVariable Long bookId, Authentication authentication) {
+        return ResponseEntity.ok(this.bookService.borrowBook(bookId, authentication));
+    }
+
+    /* other methods */
+}
+````
+
+````java
+
+@RequiredArgsConstructor
+@Service
+public class BookService {
+
+    private final BookRepository bookRepository;
+    private final BookTransactionHistoryRepository transactionHistoryRepository;
+    private final BookMapper bookMapper;
+
+    /* other methods */
+
+    public Long borrowBook(Long bookId, Authentication authentication) {
+        Book book = this.bookRepository.findById(bookId)
+                .orElseThrow(() -> new EntityNotFoundException("No se encontró el libro con id " + bookId));
+        // Si el book está archivado o no es compartible, entonces lanzamos una excepción de operación no permitida
+        if (book.isArchived() || !book.isShareable()) {
+            throw new OperationNotPermittedException("El libro solicitado no se puede tomar prestado porque está archivado o no se puede compartir");
+        }
+
+        User user = (User) authentication.getPrincipal();
+        if (Objects.equals(book.getOwner().getId(), user.getId())) {
+            throw new OperationNotPermittedException("No puedes pedir prestado tu propio libro");
+        }
+
+        final boolean isAlreadyBorrowed = this.transactionHistoryRepository.isAlreadyBorrowedByUser(bookId, user.getId());
+        if (isAlreadyBorrowed) {
+            throw new OperationNotPermittedException("El libro solicitado ya está prestado");
+        }
+
+        BookTransactionHistory bookTransactionHistory = BookTransactionHistory.builder()
+                .user(user)
+                .book(book)
+                .returned(false)
+                .returnApproved(false)
+                .build();
+
+        return this.transactionHistoryRepository.save(bookTransactionHistory).getId();
+    }
+}
+````
+
+````java
+public interface BookTransactionHistoryRepository extends JpaRepository<BookTransactionHistory, Long> {
+
+    /* other queries */
+    @Query("""
+            SELECT (COUNT(*) > 0) AS isBorrowed
+            FROM BookTransactionHistory AS history
+            WHERE history.user.id = :userId AND
+                    history.book.id = :bookId AND
+                    history.returnApproved = false
+            """)
+    boolean isAlreadyBorrowedByUser(Long bookId, Long userId);
 }
 ````

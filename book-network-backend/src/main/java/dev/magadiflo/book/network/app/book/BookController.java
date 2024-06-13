@@ -45,7 +45,6 @@ public class BookController {
         return ResponseEntity.ok(this.bookService.findAllReturnedBooks(page, size, authentication));
     }
 
-
     @GetMapping(path = "/{bookId}")
     public ResponseEntity<BookResponse> findBookById(@PathVariable Long bookId) {
         return ResponseEntity.ok(this.bookService.findById(bookId));
@@ -54,6 +53,11 @@ public class BookController {
     @PostMapping
     public ResponseEntity<Long> saveBook(@Valid @RequestBody BookRequest request, Authentication authentication) {
         return new ResponseEntity<>(this.bookService.save(request, authentication), HttpStatus.CREATED);
+    }
+
+    @PostMapping(path = "/borrow/{bookId}")
+    public ResponseEntity<Long> borrowBook(@PathVariable Long bookId, Authentication authentication) {
+        return ResponseEntity.ok(this.bookService.borrowBook(bookId, authentication));
     }
 
     @PatchMapping(path = "/shareable/{bookId}")
