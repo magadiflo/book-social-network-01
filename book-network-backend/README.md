@@ -3942,3 +3942,8 @@ Toda la configuración anterior corresponde únicamente a la especificación de 
 generales, por decirlo así. La primera `@OpenAPIDefinition` y la segunda `@SecurityScheme`. Es importante tener
 en cuenta que el atributo `name` de la anotación `@SecurityScheme` debe tener el mismo nombre que el atributo
 `name` de la anotación `@SecurityRequirement`.
+
+Luego de haber realizado más configuraciones con OpenAPI, ejecutamos la aplicación y accedemos al path de swagger para
+ver cómo es que ha quedado la configuración final de Swagger y OpenAPI:
+
+![11.specification-openapi.png](assets/11.specification-openapi.png)
