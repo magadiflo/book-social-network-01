@@ -445,3 +445,15 @@ export const APP_ROUTES: Routes = [
   { path: '**', redirectTo: '/auth', },
 ];
 ```
+
+## Prueba el Login Page
+
+Validando solicitud desde el backend:
+
+![test login 1](./src/assets/01.test-login-1.png)
+
+Login exitoso, registro de token en el localStorage:
+
+![test login 2](./src/assets/02.test-login-2.png)
+
+> Notar que aunque el login fue exitoso, estamos en la misma página dado que aún no hay otras páginas que hayamos implementado.
