@@ -17,11 +17,11 @@
   },
   "servers": [
     {
-      "url": "http://localhost:8080/api/v1",
+      "url": "http://localhost:8080",
       "description": "Local ENV"
     },
     {
-      "url": "https://magadiflo.com/courses",
+      "url": "https://magadiflo.com",
       "description": "Prod ENV"
     }
   ],

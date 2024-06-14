@@ -83,11 +83,11 @@ En este archivo `openapi.json` colocaremos lo que `swagger y openAPI` del backen
     },
     "servers": [
         {
-            "url": "http://localhost:8080/api/v1",
+            "url": "http://localhost:8080",
             "description": "Local ENV"
         },
         {
-            "url": "https://magadiflo.com/courses",
+            "url": "https://magadiflo.com",
             "description": "Prod ENV"
         }
     ],
@@ -122,6 +122,77 @@ En este archivo `openapi.json` colocaremos lo que `swagger y openAPI` del backen
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/FeedbackRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "integer",
+                                    "format": "int64"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/books": {
+            "get": {
+                "tags": [
+                    "Book"
+                ],
+                "operationId": "findAllBooks",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32",
+                            "default": 0
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32",
+                            "default": 10
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PageResponseBookResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Book"
+                ],
+                "operationId": "saveBook",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BookRequest"
                             }
                         }
                     },
@@ -208,4 +279,169 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(),
   ]
 };
+```
+
+## Implementa el Login Page
+
+Vamos a crear un directorio llamado `/auth` que albergará nuestros componentes de login, register y activate account, además definiremos nuestras rutas para dicho paquete. Empecemos creando el componente `AuthLayoutPageComponent`, este componente servirá como contenedor de los otros componentes.
+
+```typescript
+@Component({
+  selector: 'auth-layout-page',
+  standalone: true,
+  imports: [RouterOutlet],
+  templateUrl: './auth-layout-page.component.html',
+  styles: ``
+})
+export class AuthLayoutPageComponent {
+
+}
+```
+
+```html
+<router-outlet />
+```
+
+Ahora sí, creamos nuestro componente `AuthLoginPage` e implementamos la funcionalidad de inicio de sesión:
+
+```typescript
+
+@Component({
+  selector: 'auth-login-page',
+  standalone: true,
+  imports: [ReactiveFormsModule],
+  templateUrl: './auth-login-page.component.html',
+  styleUrl: './auth-login-page.component.scss'
+})
+export class AuthLoginPageComponent {
+
+  private _formBuilder = inject(NonNullableFormBuilder);
+  private _router = inject(Router);
+  private _authenticationService = inject(AuthenticationService);
+  private _tokenService = inject(TokenService);
+
+  public errorMessages: string[] = [];
+  public form: FormGroup = this._formBuilder.group({
+    email: this._formBuilder.control<string>('martin@gmail.com'),
+    password: this._formBuilder.control<string>('12345678'),
+  });
+
+  public login(): void {
+    this.errorMessages = [];
+    this._authenticationService.authenticate({ body: this.form.value })
+      .subscribe({
+        next: response => {
+          console.log(response);
+          this._tokenService.token = response.token as string;
+          this._router.navigate(['/books']);
+        },
+        error: err => {
+          console.log(err);
+          if (err.error.validationErrors) {
+            this.errorMessages = err.error.validationErrors;
+          } else {
+            console.log(err.error.error);
+            this.errorMessages.push(err.message);
+          }
+        }
+      });
+  }
+
+  public register(): void {
+    this._router.navigate(['/auth', 'register']);
+  }
+
+}
+```
+
+**¡IMPORTANTE!**, notar que en el componente anterior estamos haciendo uso de la clase de servicios que creamos automáticamente con la ayuda de `ng-openapi-gen`.
+
+```html
+<div class="container-fluid card login-container">
+  <h3 class="text-center mt-3">Login</h3>
+  <hr>
+  @if (errorMessages.length) {
+  <div class="alert alert-danger" role="alert">
+    @for (msg of errorMessages; track $index) {
+    <p>{{ msg }}</p>
+    }
+  </div>
+  }
+  <form [formGroup]="form">
+    <div class="mb-3">
+      <label for="email" class="form-label">Email address</label>
+      <input type="email" class="form-control" formControlName="email" id="email" placeholder="name@example.com">
+    </div>
+    <div class="mb-3">
+      <label for="password" class="form-label">Password</label>
+      <input type="password" class="form-control" formControlName="password" id="password" placeholder="Password">
+    </div>
+    <div class="d-flex justify-content-between mb-3">
+      <button type="button" (click)="login()" class="btn btn-primary">
+        <em class="fas fa-sign-in-alt">&nbsp;Sign in</em>
+      </button>
+      <div>
+        ¿No tienes una cuenta?&nbsp;
+        <button type="button" (click)="register()" class="btn btn-link">
+          <i class="fas fa-sign-in-alt">&nbsp;Register</i>
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+```
+
+```scss
+.login-container {
+  max-width: 800px;
+  margin-top: 15%;
+}
+```
+
+Si observamos nuestro componente de Login, podemos ver que está haciendo uso de un servicio llamado `TokenService`. Este servicio nos permitirá almacenar y recuperar el token del `localStorage`. Entonces, crearemos dicho servicio dentro de nuestro paquete de auth: `/auth/services/token.service.ts`.
+
+```typescript
+@Injectable({
+  providedIn: 'root'
+})
+export class TokenService {
+
+  public set token(token: string) {
+    localStorage.setItem('token', token);
+  }
+
+  public get token(): string {
+    return localStorage.getItem('token') as string;
+  }
+
+}
+```
+
+Finalmente, necesitamos crear las rutas con las que va a trabajar nuestros componentes. Para eso crearemos una ruta dentro del paquete `/auth` y configuraremos las rutas del login, register y activate account. Además, agregaremos rutas en el archivo rutas principales `app.routes.ts`:
+
+
+```typescript
+//book-network-frontend\src\app\auth\auth.routes.ts
+export default [
+  {
+    path: '',
+    component: AuthLayoutPageComponent,
+    children: [
+      { path: 'login', component: AuthLoginPageComponent, },
+      { path: '**', redirectTo: 'login', },
+    ],
+  }
+
+] as Routes;
+```
+
+```typescript
+//book-network-frontend\src\app\app.routes.ts
+export const APP_ROUTES: Routes = [
+  {
+    path: 'auth',
+    loadChildren: () => import('./auth/auth.routes'),
+  },
+  { path: '**', redirectTo: '/auth', },
+];
 ```
