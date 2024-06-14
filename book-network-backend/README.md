@@ -3921,8 +3921,8 @@ rutas para poder ver los endpoints con `Swagger`. Ahora, en este apartado creare
                 termsOfService = "Términos de servicio"
         ),
         servers = {
-                @Server(description = "Local ENV", url = "http://localhost:8080/api/v1"),
-                @Server(description = "Prod ENV", url = "https://magadiflo.com/courses")
+                @Server(description = "Local ENV", url = "http://localhost:8080"),
+                @Server(description = "Prod ENV", url = "https://magadiflo.com")
         },
         security = {@SecurityRequirement(name = "bearerAuth")}
 )
