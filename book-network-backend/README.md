@@ -3895,3 +3895,50 @@ public class FeedbackResponse {
     private boolean ownFeedback;
 }
 ````
+
+## Incluye Documentación OpenAPI
+
+Si bien es cierto, cuando incluimos la dependencia de `OpenApi`, en automático nuestra aplicación configura ciertas
+rutas para poder ver los endpoints con `Swagger`. Ahora, en este apartado crearemos una clase de configuración dedicada
+únicamente a ampliar las configuraciones que proporciona OpenApi.
+
+````java
+
+@OpenAPIDefinition(
+        info = @Info(
+                contact = @Contact(
+                        name = "Magadiflo",
+                        email = "contact@magadiflo.com",
+                        url = "https://magadiflo.com/courses"
+                ),
+                description = "Documentación OpenAPI para Spring Security",
+                title = "OpenAPI Specification - Magadiflo",
+                version = "1.0",
+                license = @License(
+                        name = "Nombre de la licencia",
+                        url = "https://some-url.com"
+                ),
+                termsOfService = "Términos de servicio"
+        ),
+        servers = {
+                @Server(description = "Local ENV", url = "http://localhost:8080/api/v1"),
+                @Server(description = "Prod ENV", url = "https://magadiflo.com/courses")
+        },
+        security = {@SecurityRequirement(name = "bearerAuth")}
+)
+@SecurityScheme(
+        name = "bearerAuth",
+        description = "JWT auth description",
+        scheme = "bearer",
+        type = SecuritySchemeType.HTTP,
+        bearerFormat = "JWT",
+        in = SecuritySchemeIn.HEADER
+)
+public class OpenApiConfig {
+}
+````
+
+Toda la configuración anterior corresponde únicamente a la especificación de `OpenAPI`. Tenemos dos anotaciones
+generales, por decirlo así. La primera `@OpenAPIDefinition` y la segunda `@SecurityScheme`. Es importante tener
+en cuenta que el atributo `name` de la anotación `@SecurityScheme` debe tener el mismo nombre que el atributo
+`name` de la anotación `@SecurityRequirement`.
