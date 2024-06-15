@@ -520,3 +520,13 @@ export default [
   }
 ] as Routes;
 ```
+
+## Prueba el Register Page
+
+Vamos a registrar un usuario y ver la validación que nos realiza el backend:
+
+![test register 1](./src/assets/03.test-register-1.png)
+
+Ahora realizamos un registro con todos los campos correctos. Cuando realizamos el registro, en automático nos redirecciona a la página para activar la cuenta, pero como todavía no lo tenemos implementado nos mostrará el login por defecto. Lo que sí debemos observar es que cuando nos registramos el código de activación llega al correo del usuario.
+
+![test register 2](./src/assets/04.test-register-2.png)
