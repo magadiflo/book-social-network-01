@@ -663,3 +663,25 @@ export default [
   }
 ] as Routes;
 ```
+
+## Prueba el Activate Account Page
+
+En la siguiente imagen observamos un código de activación que ha recibido el usuario en su correo. Ese código deberá ser agregada en los input de la página de angular.
+
+![test activate 1](./src/assets/05.test-activate-1.png)
+
+La siguiente imagen muestra lo que se produce cuando ingresamos un código de activación que ha expirado. En la parte derecha observamos que nos llega un mensaje con un nuevo código de activación.
+
+![test activate 2](./src/assets/06.test-activate-2.png)
+
+Ahora utilizamos el nuevo código de activación que se nos envía al correo:
+
+![test activate 3](./src/assets/07.test-activate-3.png)
+
+Como observamos el código fue aceptado, por lo tanto el usuario ahora está habilitado para poder iniciar sesión.
+
+![test activate 4](./src/assets/08.test-activate-4.png)
+
+Ahora intentemos iniciar sesión con el usuario activado. Observamos que efectivamente, estamos recibiendo un token de acceso, eso significa que el usuario está dado de alta correctamente.
+
+![test activate 5](./src/assets/09.test-activate-5.png)

@@ -1402,7 +1402,7 @@ su vez lo adjunte a la plantilla html:
 application:
   mailing:
     frontend:
-      activation-url: http://localhost:4200/activate-account
+      activation-url: http://localhost:4200/auth/activate-account
 ````
 
 ## Probando el registro de usuario y envío de email
