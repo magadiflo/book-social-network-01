@@ -1034,6 +1034,7 @@ public class AuthenticationController {
     private final AuthenticationService authenticationService;
 
     @PostMapping(path = "/register")
+    @ResponseStatus(HttpStatus.ACCEPTED) //<-- Solo es para forzar que OpenAPI/Swagger detecte el status de retorno
     public ResponseEntity<Void> register(@Valid @RequestBody RegistrationRequest request) {
         this.authenticationService.register(request);
         return ResponseEntity.accepted().build();
@@ -1044,6 +1045,33 @@ public class AuthenticationController {
 
 El tag `@Tag(name = "Authentication", description = "API de autenticación de usuario")` es de swagger. Cuando usemos
 la `UI de Swagger` veremos agrupados los endpoints de este controlador.
+
+**IMPORTANTE**
+
+> Al método `register()` le hemos agregado explícitamente la anotación `@ResponseStatus(HttpStatus.ACCEPTED)`, ya que
+> estamos trabajando con `OpenAPI/Swagger` y si no le agregamos esa anotación, siempre retornará el código de
+> estado `200`.
+>
+> En Spring Boot, cuando defines un controlador con un método que retorna un `ResponseEntity`, el código de
+> estado `HTTP` se toma de la instancia de `ResponseEntity` que se retorna, en nuestro caso, para nuestro
+> método `register()`, sin necesidad de definir el `@ResponseStatus(HttpStatus.ACCEPTED)`, estamos retornando el código
+> de estado `202 ACCEPTED` gracias a este retorno `return ResponseEntity.accepted().build()`. Sin embargo, `Swagger`
+> necesita saber de antemano cuáles son los posibles códigos de respuesta para documentarlos adecuadamente, es
+> decir, `Swagger` no sabe que vamos a retornar el código de estado `202 ACCEPTED`.
+>
+> Por defecto, si no especificas un código de estado explícitamente y no utilizas la
+> anotación `@ResponseStatus`, `Swagger` asume que el código de estado por defecto es 200 OK. Esto ocurre porque Swagger
+> no puede deducir automáticamente el código de estado desde el `ResponseEntity` que se retorna en tiempo de ejecución,
+> ya que la documentación se genera en tiempo de compilación.
+>
+> La anotación `@ResponseStatus(HttpStatus.ACCEPTED)` le dice a `Swagger` que el código de estado esperado es `202`, y
+> esto se refleja en la `UI de Swagger`.
+>
+> Finalmente, si no vamos a usar `OpenApi/Swagger`, no es necesario utilizar la anotación
+> `@ResponseStatus(HttpStatus.ACCEPTED)`, simplemente usar el código `return ResponseEntity.accepted().build()` con
+> el status a retornar, bueno en este caso, estamos usando el `.accepted()`, hay otros métodos donde usamos el
+> `.noContent()`, `.notFound()`, etc. o la respuesta se usa de esta manera
+> `return new ResponseEntity<>(this.bookService.save(request, authentication), HttpStatus.CREATED)`.
 
 En el controlador `AuthenticationController` estamos usando el record `RegistrationRequest` para recibir los datos que
 vienen en la solicitud http.
@@ -1606,6 +1634,7 @@ public class AuthenticationController {
     private final AuthenticationService authenticationService;
 
     @PostMapping(path = "/register")
+    @ResponseStatus(HttpStatus.ACCEPTED) //<-- Solo es para forzar que OpenAPI/Swagger detecte el status de retorno
     public ResponseEntity<Void> register(@Valid @RequestBody RegistrationRequest request) throws MessagingException {
         this.authenticationService.register(request);
         return ResponseEntity.accepted().build();
@@ -2574,6 +2603,7 @@ public class BookController {
     private final BookService bookService;
 
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED) //<-- Solo es para forzar que OpenAPI/Swagger detecte el status de retorno
     public ResponseEntity<Long> saveBook(@Valid @RequestBody BookRequest request, Authentication authentication) {
         return new ResponseEntity<>(this.bookService.save(request, authentication), HttpStatus.CREATED);
     }
@@ -3549,6 +3579,7 @@ public class BookController {
     /* other methods */
 
     @PostMapping(path = "/cover/{bookId}", consumes = "multipart/form-data")
+    @ResponseStatus(HttpStatus.ACCEPTED) //<-- Solo es para forzar que OpenAPI/Swagger detecte el status de retorno
     public ResponseEntity<Void> uploadBookCoverPicture(@PathVariable Long bookId, @Parameter @RequestPart MultipartFile file, Authentication authentication) {
         this.bookService.uploadBookCoverPicture(bookId, file, authentication);
         return ResponseEntity.accepted().build();
@@ -3722,6 +3753,7 @@ public class FeedbackController {
     private final FeedbackService feedbackService;
 
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED) //<-- Solo es para forzar que OpenAPI/Swagger detecte el status de retorno
     public ResponseEntity<Long> saveFeedback(@Valid @RequestBody FeedbackRequest request, Authentication authentication) {
         return new ResponseEntity<>(this.feedbackService.save(request, authentication), HttpStatus.CREATED);
     }

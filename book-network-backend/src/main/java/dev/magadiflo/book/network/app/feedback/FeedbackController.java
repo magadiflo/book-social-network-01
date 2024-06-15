@@ -26,6 +26,7 @@ public class FeedbackController {
     }
 
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED) //<-- Solo es para forzar que OpenAPI/Swagger detecte el status de retorno
     public ResponseEntity<Long> saveFeedback(@Valid @RequestBody FeedbackRequest request, Authentication authentication) {
         return new ResponseEntity<>(this.feedbackService.save(request, authentication), HttpStatus.CREATED);
     }

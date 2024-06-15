@@ -53,6 +53,7 @@ public class BookController {
     }
 
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED) //<-- Solo es para forzar que OpenAPI/Swagger detecte el status de retorno
     public ResponseEntity<Long> saveBook(@Valid @RequestBody BookRequest request, Authentication authentication) {
         return new ResponseEntity<>(this.bookService.save(request, authentication), HttpStatus.CREATED);
     }
@@ -63,6 +64,7 @@ public class BookController {
     }
 
     @PostMapping(path = "/cover/{bookId}", consumes = "multipart/form-data")
+    @ResponseStatus(HttpStatus.ACCEPTED) //<-- Solo es para forzar que OpenAPI/Swagger detecte el status de retorno
     public ResponseEntity<Void> uploadBookCoverPicture(@PathVariable Long bookId, @Parameter @RequestPart MultipartFile file, Authentication authentication) {
         this.bookService.uploadBookCoverPicture(bookId, file, authentication);
         return ResponseEntity.accepted().build();
