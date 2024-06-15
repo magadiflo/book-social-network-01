@@ -9,8 +9,11 @@ export default [
     component: AuthLayoutPageComponent,
     children: [
       { path: 'login', component: AuthLoginPageComponent, },
+      {
+        path: 'register',
+        loadComponent: () => import('./pages/auth-register-page/auth-register-page.component'),
+      },
       { path: '**', redirectTo: 'login', },
     ],
   }
-
 ] as Routes;

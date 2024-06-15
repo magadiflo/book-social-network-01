@@ -65,155 +65,84 @@ En este archivo `openapi.json` colocaremos lo que `swagger y openAPI` del backen
 
 ```json
 {
-    "openapi": "3.0.1",
-    "info": {
-        "title": "OpenAPI Specification - Magadiflo",
-        "description": "Documentación OpenAPI para Spring Security",
-        "termsOfService": "Términos de servicio",
-        "contact": {
-            "name": "Magadiflo",
-            "url": "https://magadiflo.com/courses",
-            "email": "contact@magadiflo.com"
-        },
-        "license": {
-            "name": "Nombre de la licencia",
-            "url": "https://some-url.com"
-        },
-        "version": "1.0"
+  "openapi": "3.0.1",
+  "info": {
+    "title": "OpenAPI Specification - Magadiflo",
+    "description": "Documentación OpenAPI para Spring Security",
+    "termsOfService": "Términos de servicio",
+    "contact": {
+      "name": "Magadiflo",
+      "url": "https://magadiflo.com/courses",
+      "email": "contact@magadiflo.com"
     },
-    "servers": [
-        {
-            "url": "http://localhost:8080",
-            "description": "Local ENV"
-        },
-        {
-            "url": "https://magadiflo.com",
-            "description": "Prod ENV"
-        }
-    ],
-    "security": [
-        {
-            "bearerAuth": []
-        }
-    ],
-    "tags": [
-        {
-            "name": "Feedback",
-            "description": "API Rest de la entidad Feedback"
-        },
-        {
-            "name": "Book",
-            "description": "API de Book"
-        },
-        {
-            "name": "Authentication",
-            "description": "API de autenticación de usuario"
-        }
-    ],
-    "paths": {
-        "/api/v1/feedbacks": {
-            "post": {
-                "tags": [
-                    "Feedback"
-                ],
-                "operationId": "saveFeedback",
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/FeedbackRequest"
-                            }
-                        }
-                    },
-                    "required": true
-                },
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "integer",
-                                    "format": "int64"
-                                }
-                            }
-                        }
-                    }
-                }
+    "license": {
+      "name": "Nombre de la licencia",
+      "url": "https://some-url.com"
+    },
+    "version": "1.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Local ENV"
+    },
+    {
+      "url": "https://magadiflo.com",
+      "description": "Prod ENV"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Feedback",
+      "description": "API Rest de la entidad Feedback"
+    },
+    {
+      "name": "Book",
+      "description": "API de Book"
+    },
+    {
+      "name": "Authentication",
+      "description": "API de autenticación de usuario"
+    }
+  ],
+  "paths": {
+    "/api/v1/feedbacks": {
+      "post": {
+        "tags": [
+          "Feedback"
+        ],
+        "operationId": "saveFeedback",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackRequest"
+              }
             }
+          },
+          "required": true
         },
-        "/api/v1/books": {
-            "get": {
-                "tags": [
-                    "Book"
-                ],
-                "operationId": "findAllBooks",
-                "parameters": [
-                    {
-                        "name": "page",
-                        "in": "query",
-                        "required": false,
-                        "schema": {
-                            "type": "integer",
-                            "format": "int32",
-                            "default": 0
-                        }
-                    },
-                    {
-                        "name": "size",
-                        "in": "query",
-                        "required": false,
-                        "schema": {
-                            "type": "integer",
-                            "format": "int32",
-                            "default": 10
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/PageResponseBookResponse"
-                                }
-                            }
-                        }
-                    }
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int64"
                 }
-            },
-            "post": {
-                "tags": [
-                    "Book"
-                ],
-                "operationId": "saveBook",
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/BookRequest"
-                            }
-                        }
-                    },
-                    "required": true
-                },
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "integer",
-                                    "format": "int64"
-                                }
-                            }
-                        }
-                    }
-                }
+              }
             }
-        },
-        ...
+          }
+        }
+      }
+    },
+    ...
     },
     ...
 }
@@ -269,6 +198,29 @@ Wrote src\app\services\strict-http-response.ts
 Generation from ./src/openapi/openapi.json finished with 11 models and 3 services.
 ```
 Como resultado de la ejecución del script, vemos que se crea el directorio `/services` dentro de `/app` y dentro de él toda la funcionalidad ya implementada del servicio, es decir, los métodos que hacen llamada a los endpoints del backend ya están implementadas.
+
+**Importante**
+
+> Recordemos que estamos dejando en manos de la librería `ng-openapi-gen` la generación de todo el servicio en función de la 
+> especificación que obtuvimos de la documentación de `Swagger`.
+>
+> Ahora, si revisamos los endpoints `/register` y `/activate-account` del backend, veremos que dichos endpoints
+> retornan `void`. No he investigado mucho, pero he deducido que retornar ese `void` hace que cuando
+> usemos la librería `ng-openapi-gen`, cree la petición esperando que se obtenga un texto, de esta manera:
+> `rb.build({ responseType: 'text', accept: '*/*', context })`, esto hace que cuando generemos un error en el endpoint, ya sea
+> un error de validación (por ejemplo), la respuesta se obtenga en texto y no en objeto json. 
+>
+> Entonces, para solucionarlo, es que manualmente tenemos que ir a los archivos que esperan ese texto como respuesta 
+> (`confirm.ts` y `register.ts`) y cambiar la respuesta que se generó en texto `rb.build({ responseType: 'text', accept: '*/*', context })` 
+> por una respuesta esperada en json, tal como se ve a continuación `rb.build({ responseType: 'json', accept: 'application/json', context })`.
+>
+> Algo a tener en cuenta, es que si en el backend, en vez de retornar un `ResponseEntity<Void>` (`Void` que es el que nos está generando esta situación),
+> retornáramos un `ResponseEntity<?>`, entonces tendríamos más flexibilidad, ya que usando el `?` estaríamos indicando que podemos devolver cualquier 
+> tipo de dato, eso haría que al generar la especificación con `OpenAPI` nos genere la petición como un `json` y no como un `text`.
+>
+> Tengamos en cuenta, que esto ocurre proque estamos usamos una herramienta que nos ayuda a generar el servicio completo a partir
+> de la especificación generada por `OpenAPI/Swagger`, pero si nosotros mismos construimos el servicio, no tendríamos que realizar ninguna 
+> modificación, ni nada por el estilo, es decir trabajaríamos con el `ResponseEntity<Void>` sin ningún problema.
 
 Finalmente, como estamos trabajando con `Angular 17` necesitaremos utilizar el `HttpClient` para realizar las peticiones al backend, para eso agregaremos la función `provideHttpClient()` en el `app.config.ts`:
 
@@ -340,8 +292,8 @@ export class AuthLoginPageComponent {
           if (err.error.validationErrors) {
             this.errorMessages = err.error.validationErrors;
           } else {
-            console.log(err.error.error);
-            this.errorMessages.push(err.message);
+            console.log(err.error);
+            this.errorMessages.push(err.error.businessErrorDescription);
           }
         }
       });
@@ -357,7 +309,7 @@ export class AuthLoginPageComponent {
 **¡IMPORTANTE!**, notar que en el componente anterior estamos haciendo uso de la clase de servicios que creamos automáticamente con la ayuda de `ng-openapi-gen`.
 
 ```html
-<div class="container-fluid card login-container">
+<div class="container-fluid card auth-container">
   <h3 class="text-center mt-3">Login</h3>
   <hr>
   @if (errorMessages.length) {
@@ -391,8 +343,10 @@ export class AuthLoginPageComponent {
 </div>
 ```
 
+En el archivo de estilos globales `styles.scss` agregamos el siguiente estilo:
+
 ```scss
-.login-container {
+.auth-container {
   max-width: 800px;
   margin-top: 15%;
 }
@@ -457,3 +411,112 @@ Login exitoso, registro de token en el localStorage:
 ![test login 2](./src/assets/02.test-login-2.png)
 
 > Notar que aunque el login fue exitoso, estamos en la misma página dado que aún no hay otras páginas que hayamos implementado.
+
+## Implementa Register Page
+
+En esta sección crearemos la página para el registro de usuarios.
+
+```typescript
+@Component({
+  selector: 'app-auth-register-page',
+  standalone: true,
+  imports: [ReactiveFormsModule],
+  templateUrl: './auth-register-page.component.html',
+  styleUrl: './auth-register-page.component.scss'
+})
+export default class AuthRegisterPageComponent {
+
+  private _formBuilder = inject(NonNullableFormBuilder);
+  private _router = inject(Router);
+  private _authenticationService = inject(AuthenticationService);
+
+  public errorMessages: string[] = [];
+  public form: FormGroup = this._formBuilder.group({
+    email: [''],
+    firstName: [''],
+    lastName: [''],
+    password: [''],
+  });
+
+  public login(): void {
+    this._router.navigate(['/auth', 'login']);
+  }
+
+  public register(): void {
+    this.errorMessages = [];
+    this._authenticationService.register({ body: this.form.value })
+      .subscribe({
+        next: () => this._router.navigate(['/auth', 'activate-account']),
+        error: err => {
+          console.log(err);
+          this.errorMessages = err.error.validationErrors;
+        },
+      });
+  }
+
+}
+```
+
+Notar que la ruta `/activate-account` aún no lo hemos implementado, eso lo haremos en la siguiente sección.
+
+```html
+<div class="container-fluid card auth-container">
+  <h3 class="text-center">Register</h3>
+  <hr>
+  @if (errorMessages.length) {
+  <div class="alert alert-danger" role="alert">
+    @for (msg of errorMessages; track $index) {
+    <p>{{ msg }}</p>
+    }
+  </div>
+  }
+  <form [formGroup]="form">
+    <div class="mb-3">
+      <label for="email" class="form-label">Email address</label>
+      <input type="email" class="form-control" formControlName="email" id="email" placeholder="name@example.com">
+    </div>
+    <div class="mb-3">
+      <label for="firstName" class="form-label">First Name</label>
+      <input type="text" class="form-control" formControlName="firstName" id="firstName">
+    </div>
+    <div class="mb-3">
+      <label for="lastName" class="form-label">Last Name</label>
+      <input type="text" class="form-control" formControlName="lastName" id="lastName">
+    </div>
+    <div class="mb-3">
+      <label for="password" class="form-label">Password</label>
+      <input type="password" class="form-control" formControlName="password" id="password" placeholder="Password">
+    </div>
+    <div class="d-flex justify-content-between mb-3">
+      <button type="button" (click)="register()" class="btn btn-primary">
+        <i class="fas fa-sign-in-alt">&nbsp;Register</i>
+      </button>
+      <div>
+        ¿Ya tienes una cuenta?&nbsp;
+        <button type="button" (click)="login()" class="btn btn-link">
+          <em class="fas fa-sign-in-alt">&nbsp;Sign in</em>
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+```
+
+Finalmente, agregamos la ruta para este nuevo componente:
+
+```typescript
+export default [
+  {
+    path: '',
+    component: AuthLayoutPageComponent,
+    children: [
+      { path: 'login', component: AuthLoginPageComponent, },
+      {
+        path: 'register',
+        loadComponent: () => import('./pages/auth-register-page/auth-register-page.component'),
+      },
+      { path: '**', redirectTo: 'login', },
+    ],
+  }
+] as Routes;
+```

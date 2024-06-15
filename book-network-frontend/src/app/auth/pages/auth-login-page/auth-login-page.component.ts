@@ -39,8 +39,8 @@ export class AuthLoginPageComponent {
           if (err.error.validationErrors) {
             this.errorMessages = err.error.validationErrors;
           } else {
-            console.log(err.error.error);
-            this.errorMessages.push(err.message);
+            console.log(err.error);
+            this.errorMessages.push(err.error.businessErrorDescription);
           }
         }
       });
