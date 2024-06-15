@@ -13,6 +13,10 @@ export default [
         path: 'register',
         loadComponent: () => import('./pages/auth-register-page/auth-register-page.component'),
       },
+      {
+        path: 'activate-account',
+        loadComponent: () => import('./pages/auth-activate-account-page/auth-activate-account-page.component'),
+      },
       { path: '**', redirectTo: 'login', },
     ],
   }

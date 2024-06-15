@@ -530,3 +530,136 @@ Vamos a registrar un usuario y ver la validación que nos realiza el backend:
 Ahora realizamos un registro con todos los campos correctos. Cuando realizamos el registro, en automático nos redirecciona a la página para activar la cuenta, pero como todavía no lo tenemos implementado nos mostrará el login por defecto. Lo que sí debemos observar es que cuando nos registramos el código de activación llega al correo del usuario.
 
 ![test register 2](./src/assets/04.test-register-2.png)
+
+## Implementa el Activate Account Page
+
+Una vez que un usuario se registra es redireccionado a la página de activación de de su cuenta para que ingrese el código de activación que se le envía a su correo. Para acelerar la implementación de esta página, vamos a agregar una dependencia para que nos cree una entrada (input) donde agregaremos el código de activación, aunque lo podríamos hacer de manera manual.
+
+Entonces, necesitamos instalar [Angular Code Input](https://www.npmjs.com/package/angular-code-input).
+
+```bash
+$ npm i angular-code-input
+```
+
+Una vez instalada la dependencia procedemos a constuir el componente `AuthActivateAccountPage`.
+
+```typescript
+@Component({
+  selector: 'auth-activate-account-page',
+  standalone: true,
+  imports: [CodeInputModule],
+  templateUrl: './auth-activate-account-page.component.html',
+  styleUrl: './auth-activate-account-page.component.scss'
+})
+export default class AuthActivateAccountPageComponent {
+
+  private _router = inject(Router);
+  private _authenticationService = inject(AuthenticationService);
+
+  public message = '';
+  public isOk = true;
+  public submitted = false;
+
+  public onCodeCompleted(activationCode: string) {
+    console.log({ activationCode });
+    this._authenticationService.confirm({ token: activationCode })
+      .subscribe({
+        next: () => {
+          this.message = 'Tu cuenta ha sido activada exitosamente.\nAhora puedes proceder a iniciar sesión.';
+          this.submitted = true;
+          this.isOk = true;
+        },
+        error: err => {
+          console.log(err);
+          this.message = err.error.error;
+          this.submitted = true;
+          this.isOk = false;
+        }
+      });
+
+  }
+
+  public redirectToLogin() {
+    this._router.navigate(['/auth', 'login']);
+  }
+
+}
+```
+
+**NOTA**, fijémonos que estmos usando la palabra reservada `default` en la definición de la clase, esto lo hacemos porque en el archivo de rutas `auth.routes.ts` utilizamos la siguiente instrucción para cargar este componente:
+> `loadComponent: () => import('./pages/auth-activate-account-page/auth-activate-account-page.component')` 
+
+Si no usáramos la palabra `default` en la definición de la clase, entonces tendríamos que importar el componente de esta otra manera:
+> `loadComponent: () => import('./pages/auth-activate-account-page/auth-activate-account-page.component').then(c => c.AuthActivateAccountPageComponent)`
+
+```html
+@if (submitted) {
+<div class="container">
+  @if (isOk) {
+  <div class="activate-message">
+    <h2 class="successful">Activación exitosa</h2>
+    <p>{{ message }}</p>
+    <button type="button" class="btn btn-primary" (click)="redirectToLogin()">Ir al login</button>
+  </div>
+  }@else {
+  <div class="activate-errro text-center">
+    <h2 class="failed text-center">Activación fallida</h2>
+    <p class="text-center">{{ message }}</p>
+    <button type="button" class="btn btn-primary" (click)="submitted = false">Intentar nuevamente</button>
+  </div>
+  }
+</div>
+} @else {
+<div class="container">
+  <div class="text-center" style="width: 800px;">
+    <h2>Ingrese su código de activación</h2>
+    <code-input [isCodeHidden]="false" [codeLength]="6" [code]="'number'" (codeCompleted)="onCodeCompleted($event)"
+      [className]="'large-text'"></code-input>
+  </div>
+</div>
+}
+```
+
+```scss
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.successful {
+  color: green;
+}
+
+.failed {
+  color: red;
+}
+
+.large-text {
+  font-size: 40px;
+}
+```
+
+Finalmente, agregamos la ruta correspondiente a este componente en el archivo `auth.routes.ts`:
+
+```typescript
+export default [
+  {
+    path: '',
+    component: AuthLayoutPageComponent,
+    children: [
+      { path: 'login', component: AuthLoginPageComponent, },
+      {
+        path: 'register',
+        loadComponent: () => import('./pages/auth-register-page/auth-register-page.component'),
+      },
+      {
+        path: 'activate-account',
+        loadComponent: () => import('./pages/auth-activate-account-page/auth-activate-account-page.component'),
+      },
+      { path: '**', redirectTo: 'login', },
+    ],
+  }
+] as Routes;
+```
