@@ -685,3 +685,54 @@ Como observamos el código fue aceptado, por lo tanto el usuario ahora está hab
 Ahora intentemos iniciar sesión con el usuario activado. Observamos que efectivamente, estamos recibiendo un token de acceso, eso significa que el usuario está dado de alta correctamente.
 
 ![test activate 5](./src/assets/09.test-activate-5.png)
+
+## Crea el paquete de books
+
+Vamos a agrupar toda la funcionalidad de `books` dentro de un paquete con el mismo nombre. Empezaremos creando la ruta hija para books luego modificaremos la ruta principal:
+
+```typescript
+//book-network-frontend\src\app\books\books.routes.ts
+export default [
+  {
+    path: '',
+    component: BookLayoutPageComponent,
+  }
+] as Routes;
+```
+
+```typescript
+//book-network-frontend\src\app\app.routes.ts
+export const APP_ROUTES: Routes = [
+  // another path
+  {
+    path: 'books',
+    loadChildren: () => import('./books/books.routes'),
+  },
+  // another path
+];
+```
+
+Si observamos, la ruta hija, tiene un componente llamado `BookLayoutPageComponent` que hemos creado para poder contener todos los componentes que se creen para esta funcionalidad de books.
+
+```typescript
+//book-network-frontend\src\app\books\pages\book-layout-page\book-layout-page.component.ts
+@Component({
+  selector: 'app-book-layout-page',
+  standalone: true,
+  imports: [RouterOutlet],
+  templateUrl: './book-layout-page.component.html',
+  styles: ``
+})
+export class BookLayoutPageComponent {
+
+}
+```
+
+```html
+<div>
+  Menú de la aplicación de book
+</div>
+<main>
+  <router-outlet />
+</main>
+```
