@@ -875,3 +875,73 @@ export class BookLayoutPageComponent {
   <router-outlet />
 </main>
 ```
+
+## Implementa la página de lista de libros
+
+Creamos el componente para listrar los libros
+
+```typescript
+
+@Component({
+  selector: 'app-book-list',
+  standalone: true,
+  imports: [],
+  templateUrl: './book-list.component.html',
+  styleUrl: './book-list.component.scss'
+})
+export class BookListComponent implements OnInit {
+
+  private _router = inject(Router);
+  private _bookService = inject(BookService);
+
+  public bookResponse?: PageResponseBookResponse;
+  public page = 0;
+  public size = 5;
+
+  ngOnInit(): void {
+    this.findAllBooks();
+  }
+
+  public findAllBooks() {
+    this._bookService.findAllBooks({ page: this.page, size: this.size })
+      .subscribe({
+        next: pageBookResponse => {
+          this.bookResponse = pageBookResponse;
+        }
+      });
+  }
+
+}
+```
+
+```html
+<div class="container mt-4">
+  <h3>Lista de libros</h3>
+  <hr>
+  <div class="d-flex justify-content-start gap-2 flex-wrap">
+    @if (bookResponse) {
+
+    } @else {
+      <div class="alert alert-info">Recuperando lista de libros...</div>
+    }
+  </div>
+</div>
+```
+
+Finalmente, en la ruta de libros, agregamos la ruta a este nuevo componente
+
+```typescript
+export default [
+  {
+    path: '',
+    component: BookLayoutPageComponent,
+    children: [
+      {
+        path: '',
+        component: BookListComponent,
+      },
+      { path: '**', redirectTo: '', },
+    ],
+  }
+] as Routes;
+```
