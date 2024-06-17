@@ -13,11 +13,36 @@ $ npm i bootstrap@5.3.3
 $ npm i @fortawesome/fontawesome-free
 ```
 
-Luego, en la hoja de estilos globales `styles.scss` se hizo referencia a estas dos dependencias:
+Luego, en la hoja de estilos globales `styles.scss` hacemos referencia a estas dos dependencias:
 
 ```scss
 @import 'bootstrap/dist/css/bootstrap.min.css';
 @import '@fortawesome/fontawesome-free/css/all.min.css';
+```
+
+Antes de finalizar, necesitamos agregar el script de bootstrap `bootstrap.bundle.min.js` en el proyecto. Este script, es importante porque permite que elementos como el `Navbar` funcionen en modo responsivo, así como otros elementos. Para eso, en el archivo `angular.json` agregaremos la referencia al script que viene con la instalación que hicimos de Bootstrap.
+
+```json
+"architect": {
+  "build": {
+    "builder": "@angular-devkit/build-angular:application",
+    "options": {
+      "outputPath": "dist/book-network-frontend",
+      "index": "src/index.html",
+      ...
+      "assets": [
+        "src/favicon.ico",
+        "src/assets"
+      ],
+      "styles": [
+        "src/styles.scss"
+      ],
+      "scripts": [
+        "node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"
+      ]
+    },
+  }
+}
 ```
 
 Listo, ahora sí podemos usar `bootstrap` y `fontawesome` en nuestra aplicación de Angular.
@@ -732,6 +757,120 @@ export class BookLayoutPageComponent {
 <div>
   Menú de la aplicación de book
 </div>
+<main>
+  <router-outlet />
+</main>
+```
+
+## Implementa el MenuComponent
+
+Crearemos un componente que contendrá el menú de nuestra aplicación.
+
+```typescript
+//book-network-frontend\src\app\books\components\menu\menu.component.ts
+@Component({
+  selector: 'books-menu',
+  standalone: true,
+  imports: [RouterLink, RouterLinkActive],
+  templateUrl: './menu.component.html',
+  styleUrl: './menu.component.scss'
+})
+export class MenuComponent {
+
+  public logout() {
+    console.log('logout()...');
+  }
+
+}
+```
+```html
+<!--book-network-frontend\src\app\books\components\menu\menu.component.html-->
+<nav class="navbar navbar-expand-lg bg-body-tertiary bg-dark" data-bs-theme="dark">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="javascript:void(0);">BSN</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
+      aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <li class="nav-item">
+          <a class="nav-link" [routerLink]="['/books']" routerLinkActive="active"
+            [routerLinkActiveOptions]="{exact: true}">
+            <i class="fas fa-home-alt"></i>&nbsp;Inicio
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" [routerLink]="['/books', 'my-books']" routerLinkActive="active"
+            [routerLinkActiveOptions]="{exact: true}">
+            <i class="fas fa-book"></i>&nbsp;Mis libros
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" [routerLink]="['/books', 'my-waiting-list']" routerLinkActive="active"
+            [routerLinkActiveOptions]="{exact: true}">
+            <i class="fas fa-clipboard-list"></i>&nbsp;Mi lista de espera
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" [routerLink]="['/books', 'my-returned-books']" routerLinkActive="active"
+            [routerLinkActiveOptions]="{exact: true}">
+            <i class="fas fa-retweet"></i>&nbsp;Mis libros devueltos
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" [routerLink]="['/books', 'my-borrowed-books']" routerLinkActive="active"
+            [routerLinkActiveOptions]="{exact: true}">
+            <i class="fas fa-book-open"></i>&nbsp;Mis libros prestados
+          </a>
+        </li>
+      </ul>
+      <form class="d-flex gap-2 align-items-center" role="search">
+        <input class="form-control me-2" type="search" placeholder="Search" aria-label="Search">
+        <button class="btn btn-outline-success" type="submit" aria-label="Start search">
+          <i class="fas fa-search"></i>
+        </button>
+        <span class="text-secondary">Welcome</span>
+        <span class="text-capitalize fw-bold text-white">Martín</span>
+        <button class="btn btn-link text-danger" type="button" (click)="logout()" aria-label="logout">
+          <i class="fas fa-door-open"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+</nav>
+```
+
+Importante observar que estamos haciendo uso de algunas características que nos brinda Angular,  como el uso del `routerLinkActive="active"` quien nos permite agregar la clase `active` cuando estamos en la ruta especificada. Además, estamos haciendo uso del `[routerLinkActiveOptions]="{exact: true}"`, esto nos dice que la ruta debe ser exactamente igual con la ruta que hemos especificado en el router link. Si no usamos esta útlima característica, como todos los menú tienen el `routerLinkActive="active"`, cada vez que vayamos a un link, al menú se le agregará la clase `active` (hasta ahí todo correcto), pero cuando vayamos a otro menú, el menú anterior seguirá con la clase active.
+
+
+```scss
+li>a {
+  &:hover {
+    background-color: #d6e5f1;
+    border-radius: 5px;
+    color: #2B3035;
+  }
+}
+```
+
+Finalmente, el componente de menú lo agregamos al layout de books:
+
+```typescript
+@Component({
+  selector: 'app-book-layout-page',
+  standalone: true,
+  imports: [RouterOutlet, MenuComponent],
+  templateUrl: './book-layout-page.component.html',
+  styles: ``
+})
+export class BookLayoutPageComponent {
+
+}
+```
+
+```html
+<books-menu />
 <main>
   <router-outlet />
 </main>
