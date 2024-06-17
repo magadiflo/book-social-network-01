@@ -945,3 +945,35 @@ export default [
   }
 ] as Routes;
 ```
+
+## Injecta el Jwt usando un HTTP Interceptor
+
+Una vez que nos hemos logueado, necesitamos agregar el `jwt` a la cabecera de la solicitud cada vez que hagamos una petición al backend. Para eso necesitamos crear un interceptor que será el encargado de agregar a los headers, el token almacenado en el localStorage.
+
+```typescript
+export const httpTokenInterceptor: HttpInterceptorFn = (req, next) => {
+  const tokenService = inject(TokenService);
+  const token: string = tokenService.token;
+
+  let reqClone = req;
+
+  if (token) {
+    reqClone = req.clone({
+      headers: req.headers.set('Authorization', `Bearer ${token}`)
+    });
+  }
+
+  return next(reqClone);
+};
+```
+
+Luego debemos agregar el interceptor creado al archivo `app.config.ts`
+
+```typescript
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideRouter(APP_ROUTES),
+    provideHttpClient(withInterceptors([httpTokenInterceptor])),
+  ]
+};
+```
