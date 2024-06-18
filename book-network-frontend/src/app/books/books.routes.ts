@@ -12,6 +12,10 @@ export default [
         path: '',
         component: BookListComponent,
       },
+      {
+        path: 'my-books',
+        loadComponent: () => import('./pages/my-books/my-books.component')
+      },
       { path: '**', redirectTo: '', },
     ],
   }

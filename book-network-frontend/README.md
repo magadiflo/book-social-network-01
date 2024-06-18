@@ -1352,7 +1352,7 @@ Cada vez que demos click en el botón del card, el de pedir prestado, se enviar�
 export class BookListComponent implements OnInit {
 
   /* other properties*/
-  
+
   public message = '';
   public level = 'success';
 
@@ -1397,5 +1397,140 @@ export class BookListComponent implements OnInit {
     }
   </div>
   <!-- Etiquetas de la paginación -->
+</div>
+```
+## Implementa la página my-book
+
+La implementación de esta página será similar a la de la lista de libros. La diferencia es que aquí llamaremos a otro endpoint que nos traerá los libros que son propios del usuario logueado.
+
+```typescript
+
+@Component({
+  selector: 'app-my-books',
+  standalone: true,
+  imports: [BookCardComponent, RouterLink],
+  templateUrl: './my-books.component.html',
+  styleUrl: './my-books.component.scss'
+})
+export default class MyBooksComponent implements OnInit {
+
+  private _bookService = inject(BookService);
+
+  public bookResponse?: PageResponseBookResponse;
+  public page = 0;
+  public size = 4;
+
+  ngOnInit(): void {
+    this.findAllBooks();
+  }
+
+  public findAllBooks() {
+    this._bookService.findAllBooksByOwner({ page: this.page, size: this.size })
+      .subscribe({
+        next: pageBookResponse => {
+          this.bookResponse = pageBookResponse;
+          console.log(this.bookResponse);
+        }
+      });
+  }
+
+  public goToPage(page: number) {
+    this.page = page;
+    this.findAllBooks();
+  }
+
+  public goToFirstPage() {
+    this.page = 0;
+    this.findAllBooks();
+  }
+
+  public goToLastPage() {
+    this.page = this.bookResponse?.totalPages as number - 1;
+    this.findAllBooks();
+  }
+
+  public goToPreviousPage() {
+    this.page--;
+    this.findAllBooks();
+  }
+
+  public goToNextPage() {
+    this.page++;
+    this.findAllBooks();
+  }
+
+  public archiveBook(book: BookResponse) {
+
+  }
+
+  public shareBook(book: BookResponse) {
+
+  }
+
+  public editBook(book: BookResponse) {
+
+  }
+
+}
+```
+
+```html
+<div class="container mt-4">
+  <h3>Mi lista de libros</h3>
+  <hr>
+  <div class="d-flex justify-content-end mb-3">
+    <a [routerLink]="['/books', 'manage']" class="btn btn-outline-primary">
+      <i class="fas fa-plus"></i>&nbsp; Nuevo libro
+    </a>
+  </div>
+  <div class="d-flex justify-content-start gap-2 flex-wrap">
+    @if (bookResponse) {
+    @for (book of bookResponse.content; track $index) {
+    <book-card [book]="book" [manage]="true" (archive)="archiveBook($event)" (share)="shareBook($event)"
+      (edit)="editBook($event)" />
+    } @empty {
+    <div class="alert alert-warning">
+      Aún no hay libros en su lista.
+    </div>
+    }
+    } @else {
+    <div class="alert alert-info">Recuperando lista de libros...</div>
+    }
+  </div>
+  @if (bookResponse) {
+  <div class="d-flex justify-content-center mt-3">
+    <nav aria-label="Page navigation example">
+      <ul class="pagination">
+        <li class="page-item" [class.disabled]="bookResponse.first">
+          <a class="page-link" href="#" (click)="$event.preventDefault();goToFirstPage();" aria-label="Previous">
+            <i class="fa-solid fa-angles-left"></i>
+          </a>
+        </li>
+        <li class="page-item" [class.disabled]="bookResponse.first">
+          <a class="page-link" href="#" (click)="$event.preventDefault();goToPreviousPage();" aria-label="Previous">
+            <i class="fa-solid fa-angle-left"></i>
+          </a>
+        </li>
+
+        @for (page of [].constructor(bookResponse.totalPages); track $index) {
+        <li class="page-item" [class.active]="bookResponse.number == $index">
+          <a class="page-link" href="#" (click)="$event.preventDefault();goToPage($index);">{{ $index + 1 }}</a>
+        </li>
+        }
+
+        <li class="page-item" [class.disabled]="bookResponse.last">
+          <a class="page-link" href="#" (click)="$event.preventDefault();goToNextPage();" aria-label="Next">
+            <i class="fa-solid fa-angle-right"></i>
+          </a>
+        </li>
+        <li class="page-item" [class.disabled]="bookResponse.last">
+          <a class="page-link" href="#" (click)="$event.preventDefault();goToLastPage();" aria-label="Next">
+            <i class="fa-solid fa-angles-right"></i>
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+  }
 </div>
 ```

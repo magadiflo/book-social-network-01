@@ -1,5 +1,7 @@
-import { Component } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { Component, inject } from '@angular/core';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
+
+import { TokenService } from '../../../auth/services/token.service';
 
 @Component({
   selector: 'books-menu',
@@ -10,8 +12,13 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
 })
 export class MenuComponent {
 
+  private _tokenService = inject(TokenService);
+  private _router = inject(Router);
+
   public logout() {
     console.log('logout()...');
+    this._tokenService.logout();
+    this._router.navigate(['/auth', 'login']);
   }
 
 }
