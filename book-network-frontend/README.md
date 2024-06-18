@@ -1335,3 +1335,67 @@ export class BookListComponent implements OnInit {
   }
 </div>
 ```
+
+## Implementa la acción de pedir prestado
+
+Cada vez que demos click en el botón del card, el de pedir prestado, se enviará la solicitud al backend para que podamos prestar el libro. Dependiendo de si el libro aún no ha sido prestado lanzaremos un mensaje de confirmación.
+
+```typescript
+
+@Component({
+  selector: 'app-book-list',
+  standalone: true,
+  imports: [BookCardComponent],
+  templateUrl: './book-list.component.html',
+  styleUrl: './book-list.component.scss'
+})
+export class BookListComponent implements OnInit {
+
+  /* other properties*/
+  
+  public message = '';
+  public level = 'success';
+
+  /* other methods */
+
+  public borrowBook(book: BookResponse) {
+    this.message = '';
+    this._bookService.borrowBook({ 'bookId': book.id! })
+      .subscribe({
+        next: transactionHistoryId => {
+          console.log({ transactionHistoryId });
+          this.level = 'success';
+          this.message = 'El libro se ha agregado correctamente a tu lista';
+        },
+        error: err => {
+          console.log(err);
+          this.level = 'error';
+          this.message = err.error.error;
+        }
+      });
+  }
+
+}
+```
+
+```html
+<div class="container mt-4">
+  <h3>Lista de libros</h3>
+  @if (message) {
+  <div class="alert" [class.alert-success]="level == 'success'" [class.alert-danger]="level == 'error'">
+    {{ message }}
+  </div>
+  }
+  <hr>
+  <div class="d-flex justify-content-start gap-2 flex-wrap">
+    @if (bookResponse) {
+    @for (book of bookResponse.content; track $index) {
+    <book-card [book]="book" (borrow)="borrowBook($event)" />
+    }
+    } @else {
+    <div class="alert alert-info">Recuperando lista de libros...</div>
+    }
+  </div>
+  <!-- Etiquetas de la paginación -->
+</div>
+```

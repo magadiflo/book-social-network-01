@@ -1,10 +1,15 @@
 <div class="container mt-4">
   <h3>Lista de libros</h3>
+  @if (message) {
+  <div class="alert" [class.alert-success]="level == 'success'" [class.alert-danger]="level == 'error'">
+    {{ message }}
+  </div>
+  }
   <hr>
   <div class="d-flex justify-content-start gap-2 flex-wrap">
     @if (bookResponse) {
     @for (book of bookResponse.content; track $index) {
-    <book-card [book]="book" />
+    <book-card [book]="book" (borrow)="borrowBook($event)" />
     }
     } @else {
     <div class="alert alert-info">Recuperando lista de libros...</div>

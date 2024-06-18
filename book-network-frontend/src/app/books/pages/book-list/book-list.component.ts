@@ -2,7 +2,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { BookService } from '../../../services/services';
-import { PageResponseBookResponse } from '../../../services/models';
+import { BookResponse, PageResponseBookResponse } from '../../../services/models';
 import { BookCardComponent } from '../../components/book-card/book-card.component';
 
 @Component({
@@ -20,6 +20,8 @@ export class BookListComponent implements OnInit {
   public bookResponse?: PageResponseBookResponse;
   public page = 0;
   public size = 4;
+  public message = '';
+  public level = 'success';
 
   ngOnInit(): void {
     this.findAllBooks();
@@ -58,6 +60,23 @@ export class BookListComponent implements OnInit {
   public goToNextPage() {
     this.page++;
     this.findAllBooks();
+  }
+
+  public borrowBook(book: BookResponse) {
+    this.message = '';
+    this._bookService.borrowBook({ 'bookId': book.id! })
+      .subscribe({
+        next: transactionHistoryId => {
+          console.log({ transactionHistoryId });
+          this.level = 'success';
+          this.message = 'El libro se ha agregado correctamente a tu lista';
+        },
+        error: err => {
+          console.log(err);
+          this.level = 'error';
+          this.message = err.error.error;
+        }
+      });
   }
 
 }
