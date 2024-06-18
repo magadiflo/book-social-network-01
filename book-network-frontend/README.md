@@ -1221,3 +1221,117 @@ Finalmente, en su elemento html agregamos el componente de rating y valor del mi
   }
 </div>
 ```
+## Implementa la paginación
+
+Implementaremos la paginación utilizando el mismo objeto que nos retorna desde el backend.
+
+```typescript
+
+@Component({
+  selector: 'app-book-list',
+  standalone: true,
+  imports: [BookCardComponent],
+  templateUrl: './book-list.component.html',
+  styleUrl: './book-list.component.scss'
+})
+export class BookListComponent implements OnInit {
+
+  private _router = inject(Router);
+  private _bookService = inject(BookService);
+
+  public bookResponse?: PageResponseBookResponse;
+  public page = 0;
+  public size = 4;
+
+  ngOnInit(): void {
+    this.findAllBooks();
+  }
+
+  public findAllBooks() {
+    this._bookService.findAllBooks({ page: this.page, size: this.size })
+      .subscribe({
+        next: pageBookResponse => {
+          this.bookResponse = pageBookResponse;
+          console.log(this.bookResponse);
+        }
+      });
+  }
+
+  public goToPage(page: number) {
+    this.page = page;
+    this.findAllBooks();
+  }
+
+  public goToFirstPage() {
+    this.page = 0;
+    this.findAllBooks();
+  }
+
+  public goToLastPage() {
+    this.page = this.bookResponse?.totalPages as number - 1;
+    this.findAllBooks();
+  }
+
+  public goToPreviousPage() {
+    this.page--;
+    this.findAllBooks();
+  }
+
+  public goToNextPage() {
+    this.page++;
+    this.findAllBooks();
+  }
+
+}
+```
+
+```html
+<div class="container mt-4">
+  <h3>Lista de libros</h3>
+  <hr>
+  <div class="d-flex justify-content-start gap-2 flex-wrap">
+    @if (bookResponse) {
+    @for (book of bookResponse.content; track $index) {
+    <book-card [book]="book" />
+    }
+    } @else {
+    <div class="alert alert-info">Recuperando lista de libros...</div>
+    }
+  </div>
+  @if (bookResponse) {
+  <div class="d-flex justify-content-center mt-3">
+    <nav aria-label="Page navigation example">
+      <ul class="pagination">
+        <li class="page-item" [class.disabled]="bookResponse.first">
+          <a class="page-link" href="#" (click)="$event.preventDefault();goToFirstPage();" aria-label="Previous">
+            <i class="fa-solid fa-angles-left"></i>
+          </a>
+        </li>
+        <li class="page-item" [class.disabled]="bookResponse.first">
+          <a class="page-link" href="#" (click)="$event.preventDefault();goToPreviousPage();" aria-label="Previous">
+            <i class="fa-solid fa-angle-left"></i>
+          </a>
+        </li>
+
+        @for (page of [].constructor(bookResponse.totalPages); track $index) {
+        <li class="page-item" [class.active]="bookResponse.number == $index">
+          <a class="page-link" href="#" (click)="$event.preventDefault();goToPage($index);">{{ $index + 1 }}</a>
+        </li>
+        }
+
+        <li class="page-item" [class.disabled]="bookResponse.last">
+          <a class="page-link" href="#" (click)="$event.preventDefault();goToNextPage();" aria-label="Next">
+            <i class="fa-solid fa-angle-right"></i>
+          </a>
+        </li>
+        <li class="page-item" [class.disabled]="bookResponse.last">
+          <a class="page-link" href="#" (click)="$event.preventDefault();goToLastPage();" aria-label="Next">
+            <i class="fa-solid fa-angles-right"></i>
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+  }
+</div>
+```

@@ -19,7 +19,7 @@ export class BookListComponent implements OnInit {
 
   public bookResponse?: PageResponseBookResponse;
   public page = 0;
-  public size = 5;
+  public size = 4;
 
   ngOnInit(): void {
     this.findAllBooks();
@@ -33,6 +33,31 @@ export class BookListComponent implements OnInit {
           console.log(this.bookResponse);
         }
       });
+  }
+
+  public goToPage(page: number) {
+    this.page = page;
+    this.findAllBooks();
+  }
+
+  public goToFirstPage() {
+    this.page = 0;
+    this.findAllBooks();
+  }
+
+  public goToLastPage() {
+    this.page = this.bookResponse?.totalPages as number - 1;
+    this.findAllBooks();
+  }
+
+  public goToPreviousPage() {
+    this.page--;
+    this.findAllBooks();
+  }
+
+  public goToNextPage() {
+    this.page++;
+    this.findAllBooks();
   }
 
 }
