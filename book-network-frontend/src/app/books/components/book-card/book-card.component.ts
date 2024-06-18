@@ -2,11 +2,12 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 
 import { BookResponse } from '../../../services/models';
 import { BookImagePipe } from '../../pipes/book-image.pipe';
+import { RatingComponent } from './../rating/rating.component';
 
 @Component({
   selector: 'book-card',
   standalone: true,
-  imports: [BookImagePipe],
+  imports: [RatingComponent, BookImagePipe],
   templateUrl: './book-card.component.html',
   styleUrl: './book-card.component.scss'
 })

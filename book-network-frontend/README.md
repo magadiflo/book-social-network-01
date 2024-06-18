@@ -1149,3 +1149,75 @@ export class BookListComponent implements OnInit {
   </div>
 </div>
 ```
+
+## Implementa el RatingComponent
+
+En el apartado anterior dejamos escrito `5 starts` en el componente BookCard. En este apartado crearemos un componente que nos permitirá mostrar gráficamente las 5 estrellas coloreadas en función del feedback que otorgen los usuarios.
+
+```typescript
+@Component({
+  selector: 'rating',
+  standalone: true,
+  imports: [],
+  templateUrl: './rating.component.html',
+  styleUrl: './rating.component.scss'
+})
+export class RatingComponent {
+
+  @Input() rating: number = 0;
+  public maxRating: number = 5;
+
+  public get fullStarts(): number {
+    return Math.floor(this.rating);
+  }
+
+  public get hasHalfStart(): boolean {
+    return this.rating % 1 !== 0;
+  }
+
+  public get emptyStarts(): number {
+    return this.maxRating - Math.ceil(this.rating);
+  }
+}
+```
+```html
+<div class="rating">
+  @for (_ of [].constructor(fullStarts); track $index) {
+  <i class="fas fa-star text-warning"></i>
+  }
+  @if(hasHalfStart) {
+  <i class="fas fa-star-half-alt text-warning"></i>
+  }
+  @for (_ of [].constructor(emptyStarts); track $index) {
+  <i class="fas fa-star"></i>
+  }
+</div>
+```
+
+Ahora, en el componente `BookCardComponent` agregamos nuestro componente de rating:
+
+```typescript
+@Component({
+  selector: 'book-card',
+  standalone: true,
+  imports: [RatingComponent, BookImagePipe],
+  templateUrl: './book-card.component.html',
+  styleUrl: './book-card.component.scss'
+})
+export class BookCardComponent {
+  /* code */
+}
+```
+
+Finalmente, en su elemento html agregamos el componente de rating y valor del mismo:
+
+```html
+<div class="d-flex gap-2">
+  <rating [rating]="book.rate || 0"/>
+  @if(book.rate || 0 > 0) {
+    <span class="fw-bold">
+      {{ book.rate }}
+    </span>
+  }
+</div>
+```
