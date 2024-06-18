@@ -977,3 +977,175 @@ export const appConfig: ApplicationConfig = {
   ]
 };
 ```
+
+## Implementa el componente Book Card 
+
+Crearemos el componente `BookCard` que mostrará los detalles de los libros.
+
+```typescript
+
+@Component({
+  selector: 'book-card',
+  standalone: true,
+  imports: [BookImagePipe],
+  templateUrl: './book-card.component.html',
+  styleUrl: './book-card.component.scss'
+})
+export class BookCardComponent {
+
+  private _book!: BookResponse;
+  private _manage = false;
+
+  @Output() private share: EventEmitter<BookResponse> = new EventEmitter<BookResponse>();
+  @Output() private archive: EventEmitter<BookResponse> = new EventEmitter<BookResponse>();
+  @Output() private addToWaitingList: EventEmitter<BookResponse> = new EventEmitter<BookResponse>();
+  @Output() private borrow: EventEmitter<BookResponse> = new EventEmitter<BookResponse>();
+  @Output() private edit: EventEmitter<BookResponse> = new EventEmitter<BookResponse>();
+  @Output() private details: EventEmitter<BookResponse> = new EventEmitter<BookResponse>();
+
+  @Input({ required: true })
+  public set book(book: BookResponse) {
+    this._book = book;
+  }
+
+  @Input()
+  public set manage(value: boolean) {
+    this._manage = value;
+  }
+
+  public get book(): BookResponse {
+    return this._book;
+  }
+
+  public get manage(): boolean {
+    return this._manage;
+  }
+
+  public onShowDetails(): void {
+    this.details.emit(this._book);
+  }
+
+  public onBorrow(): void {
+    this.borrow.emit(this._book);
+  }
+
+  public onAddToWaitingList(): void {
+    this.addToWaitingList.emit(this._book);
+  }
+
+  public onEdit(): void {
+    this.edit.emit(this._book);
+  }
+
+  public onShare(): void {
+    this.share.emit(this._book);
+  }
+
+  public onArchive(): void {
+    this.archive.emit(this._book);
+  }
+
+}
+```
+
+```html
+<div class="card" style="width: 18rem;">
+  <img height="200" [src]="book | bookImage" class="card-img-top" alt="...">
+  <div class="card-body overflow-scroll">
+    <h5 class="card-title fs-6 text-nowrap fw-bold mb-1">
+      <i class="fa-solid fa-book"></i>&nbsp;{{ book.title }}
+    </h5>
+    <h5 class="card-subtitle fs-6 text-secondary mb-1">
+      <i class="fa-solid fa-user-check"></i>&nbsp;{{ book.authorName }}
+    </h5>
+    <h6 class="card-subtitle fs-6 text-secondary mb-1">
+      <i class="fas fa-code"></i>&nbsp;{{ book.isbn }}
+    </h6>
+    <h6 class="card-subtitle fs-6 text-secondary">
+      <i class="fas fa-user"></i>&nbsp;{{ book.owner }}
+    </h6>
+    <hr>
+    <p class="card-text">{{ book.synopsis }}</p>
+    <a href="#" class="btn btn-primary">Go somewhere</a>
+  </div>
+  <div class="card-footer d-flex gap-2 justify-content-between align-items-center">
+    <div class="d-flex gap-2">
+      5 starts
+    </div>
+    @if (!manage) {
+    <div class="d-flex gap-2">
+      <i (click)="onShowDetails()" class="fas fa-circle-info text-primary"></i>
+      <i (click)="onBorrow()" class="fas fa-list-check text-primary"></i>
+      <i (click)="onAddToWaitingList()" class="fas fa-heart text-danger"></i>
+    </div>
+    } @else {
+    <div class="d-flex gap-2">
+      <i (click)="onEdit()" class="fas fa-edit text-success"></i>
+      <i (click)="onShare()" class="fas fa-share-nodes text-primary"></i>
+      <i (click)="onArchive()" class="fas fa-archive text-danger"></i>
+    </div>
+    }
+  </div>
+</div>
+```
+
+```scss
+div {
+  &.card {
+    max-height: 450px;
+    min-height: 450px;
+  }
+}
+
+i {
+  cursor: pointer;
+}
+```
+
+Si observamos el componente de html de nuestro card de book, veremos que estamos haciendo uso de un pipe `bookImage`. Debemos crear dicho pipe para mostrar la imagen del libro o mostrar por defecto una imagen si es que el libro aún no tienen una imagen asignada.
+
+```typescript
+
+@Pipe({
+  name: 'bookImage',
+  standalone: true
+})
+export class BookImagePipe implements PipeTransform {
+
+  transform(book: BookResponse): string {
+    return !!book.cover ? `data:image/jpg;base64,${book.cover}` : './assets/books/no_image_available.svg';
+  }
+}
+```
+
+Finalmente, una vez que hayamos construido nuestro card de book, debemos usarlo en el componente `BookList`.
+
+```typescript
+@Component({
+  selector: 'app-book-list',
+  standalone: true,
+  imports: [BookCardComponent],
+  templateUrl: './book-list.component.html',
+  styleUrl: './book-list.component.scss'
+})
+export class BookListComponent implements OnInit {
+
+  /* code */
+
+}
+```
+```html
+<div class="container mt-4">
+  <h3>Lista de libros</h3>
+  <hr>
+  <div class="d-flex justify-content-start gap-2 flex-wrap">
+    @if (bookResponse) {
+    @for (book of bookResponse.content; track $index) {
+    <book-card [book]="book" />
+    }
+    } @else {
+    <div class="alert alert-info">Recuperando lista de libros...</div>
+    }
+  </div>
+</div>
+```

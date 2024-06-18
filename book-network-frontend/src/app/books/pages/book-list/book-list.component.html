@@ -3,9 +3,11 @@
   <hr>
   <div class="d-flex justify-content-start gap-2 flex-wrap">
     @if (bookResponse) {
-
+    @for (book of bookResponse.content; track $index) {
+    <book-card [book]="book" />
+    }
     } @else {
-      <div class="alert alert-info">Recuperando lista de libros...</div>
+    <div class="alert alert-info">Recuperando lista de libros...</div>
     }
   </div>
 </div>
