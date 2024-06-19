@@ -1869,3 +1869,35 @@ export default class MyBooksComponent implements OnInit {
   /* another moethod */
 }
 ```
+
+## Implementa la función  de archivar libro
+
+Esta función es sencilla, lo único que debemos hacer es implementar el método que ya tenemos construido para archivar el libro.
+
+```typescript
+//book-network-frontend\src\app\books\pages\my-books\my-books.component.ts
+
+@Component({
+  selector: 'app-my-books',
+  standalone: true,
+  imports: [BookCardComponent, RouterLink],
+  templateUrl: './my-books.component.html',
+  styleUrl: './my-books.component.scss'
+})
+export default class MyBooksComponent implements OnInit {
+
+  /* other codes */
+
+  public archiveBook(book: BookResponse) {
+    this._bookService.updateArchivedStatus({ bookId: book.id! })
+      .subscribe({
+        next: bookId => {
+          console.log(bookId);
+          book.archived = !book.archived;
+        }
+      });
+  }
+
+  /* other methods */
+}
+```

@@ -61,7 +61,13 @@ export default class MyBooksComponent implements OnInit {
   }
 
   public archiveBook(book: BookResponse) {
-
+    this._bookService.updateArchivedStatus({ bookId: book.id! })
+      .subscribe({
+        next: bookId => {
+          console.log(bookId);
+          book.archived = !book.archived;
+        }
+      });
   }
 
   public shareBook(book: BookResponse) {
