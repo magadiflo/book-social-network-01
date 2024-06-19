@@ -1534,3 +1534,161 @@ export default class MyBooksComponent implements OnInit {
   }
 </div>
 ```
+
+## Implementa el método crear libro
+
+
+Vamos a crear un componente donde estará nuestro formulario para crear libros, además irá acompañada de de la funcionalidad para agregar una imagen al libro.
+
+```typescript
+//book-network-frontend\src\app\books\pages\manage-book\manage-book.component.ts
+@Component({
+  selector: 'app-manage-book',
+  standalone: true,
+  imports: [ReactiveFormsModule, RouterLink],
+  templateUrl: './manage-book.component.html',
+  styleUrl: './manage-book.component.scss'
+})
+export default class ManageBookComponent {
+
+  private _router = inject(Router);
+  private _formBuilder = inject(NonNullableFormBuilder);
+  private _bookService = inject(BookService);
+
+  public form: FormGroup = this._formBuilder.group({
+    id: [null],
+    shareable: [null],
+    authorName: [''],
+    isbn: [''],
+    synopsis: [''],
+    title: [''],
+  });
+  public errorMessages: string[] = [];
+  public selectedImageFile?: File;
+  public imagePreview?: string;
+
+  public onFileSelected(event: Event) {
+    this.selectedImageFile = (event.target as HTMLInputElement).files![0];
+    console.log(this.selectedImageFile);
+
+    if (!this.selectedImageFile) {
+      this.imagePreview = undefined;
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.imagePreview = reader.result as string;
+    }
+    reader.readAsDataURL(this.selectedImageFile);
+  }
+
+  public saveBook() {
+    const request = this.form.value as BookRequest;
+    this._bookService.saveBook({ body: request })
+      .pipe(
+        concatMap(bookId => this.selectedImageFile ? this.uploadImage(bookId) : of(bookId))
+      )
+      .subscribe({
+        next: bookId => {
+          console.log(bookId);
+          this._router.navigate(['/books', 'my-books']);
+        },
+        error: err => {
+          console.log(err);
+          this.errorMessages = err.error.validationErrors;
+        }
+      });
+  }
+
+  private uploadImage(bookId: number): Observable<void> {
+    return this._bookService.uploadBookCoverPicture({ bookId, body: { file: this.selectedImageFile! } });
+  }
+
+}
+```
+```html
+<div class="container p-2">
+  <h2>Administrar mi libro</h2>
+  <hr>
+  @if (errorMessages.length) {
+  <div class="alert alert-danger mt-2" role="alert">
+    @for (message of errorMessages; track $index) {
+    <p class="p-0 m-0">{{ message }}</p>
+    }
+  </div>
+  }
+  <div class="d-flex gap-2">
+    <div class="col-3">
+      <img [src]="imagePreview || './assets/books/no_image_available.svg'" class="rounded-1" width="100%" height="100%">
+      <div class="mt-2">
+        <input type="file" (change)="onFileSelected($event)" accept="image/*" class="form-control" id="formFile">
+      </div>
+    </div>
+    <div class="col-9">
+      <form [formGroup]="form" class="row g-3" autocomplete="off">
+        <div class="col-12">
+          <label for="title" class="form-label">Título del libro</label>
+          <input type="text" class="form-control" id="title" formControlName="title">
+        </div>
+        <div class="col-6">
+          <label for="authorName" class="form-label">Nombre del autor</label>
+          <input type="text" class="form-control" id="authorName" formControlName="authorName">
+        </div>
+        <div class="col-6">
+          <label for="isbn" class="form-label">ISBN</label>
+          <input type="text" class="form-control" id="isbn" formControlName="isbn">
+        </div>
+        <div class="col-12">
+          <label for="synopsis" class="form-label">Sinopsis</label>
+          <textarea id="synopsis" class="form-control" rows="4" formControlName="synopsis"></textarea>
+        </div>
+        <div class="col-12 form-check">
+          <input type="checkbox" class="form-check-input" id="shareable" formControlName="shareable">
+          <label class="form-check-label" for="shareable">Compárteme</label>
+        </div>
+        <div class="d-flex justify-content-end gap-2 col-12">
+          <button type="button" (click)="saveBook()" class="btn btn-outline-primary">
+            <i class="fas fa-save"></i>&nbsp; Guardar
+          </button>
+          <a [routerLink]="['/books', 'my-books']" class="btn btn-link text-danger">
+            <i class="fas fa-times"></i>&nbsp;Cancelar
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+```
+Luego, debemos agregar una nueva ruta para nuestro componente `ManageBookComponent`:
+
+```typescript
+//book-network-frontend\src\app\books\books.routes.ts
+export default [
+  {
+    path: '',
+    component: BookLayoutPageComponent,
+    children: [
+      {
+        path: '',
+        component: BookListComponent,
+      },
+      {
+        path: 'my-books',
+        loadComponent: () => import('./pages/my-books/my-books.component')
+      },
+      {
+        path: 'manage',
+        loadComponent: () => import('./pages/manage-book/manage-book.component')
+      },
+      {
+        path: 'manage/:bookId',
+        loadComponent: () => import('./pages/manage-book/manage-book.component')
+      },
+      { path: '**', redirectTo: '', },
+    ],
+  }
+] as Routes;
+```
+
+Notar que hemos agregado dos rutas `manage`, una para guardar un libro y la otra para editar.

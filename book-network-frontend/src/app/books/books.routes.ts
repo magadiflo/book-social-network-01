@@ -16,6 +16,14 @@ export default [
         path: 'my-books',
         loadComponent: () => import('./pages/my-books/my-books.component')
       },
+      {
+        path: 'manage',
+        loadComponent: () => import('./pages/manage-book/manage-book.component')
+      },
+      {
+        path: 'manage/:bookId',
+        loadComponent: () => import('./pages/manage-book/manage-book.component')
+      },
       { path: '**', redirectTo: '', },
     ],
   }
