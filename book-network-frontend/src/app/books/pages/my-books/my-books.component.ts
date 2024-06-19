@@ -1,5 +1,5 @@
 import { Component, OnInit, inject } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 
 import { BookService } from '../../../services/services';
 import { BookResponse, PageResponseBookResponse } from '../../../services/models';
@@ -14,6 +14,7 @@ import { BookCardComponent } from '../../components/book-card/book-card.componen
 })
 export default class MyBooksComponent implements OnInit {
 
+  private _router = inject(Router);
   private _bookService = inject(BookService);
 
   public bookResponse?: PageResponseBookResponse;
@@ -68,7 +69,7 @@ export default class MyBooksComponent implements OnInit {
   }
 
   public editBook(book: BookResponse) {
-
+    this._router.navigate(['/books', 'manage', book.id]);
   }
 
 }

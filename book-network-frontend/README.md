@@ -1692,3 +1692,139 @@ export default [
 ```
 
 Notar que hemos agregado dos rutas `manage`, una para guardar un libro y la otra para editar.
+
+## Implementa el actualizar un libro
+
+**NOTA: Inconsistencias al actualizar un libro**
+
+> En este apartado de editar un libro, el autor utiliza el mismo endpoint que se usa para crear un libro.
+> La diferencia es que cuando edita un libro envía el id del libro en el BookRequest, mientras que cuando crea un libro,
+> el id va como null.
+>
+> `¿Por qué hago esta aclaración?`, porque en el backend no se ha implementado un endpoint del tipo `PUT` para actualizar un libro,
+> cosa que cuando usamos el endpoint que es para guardar del tipo `POST`, ese endpoint tiene implementado una lógica para registrar
+> el libro y al hacer uso de ese endpoint para actualizar se presentan ciertas `inconsistencias`. 
+>
+> **Por ejemplo:**, si actualizamos un libro que ya tiene una imagen, editamos algunos atributos, pero la imagen no la tocamos, al dar
+> en `guardar` para actualizar el libro, la imagen se elimina. Eso ocurre por que el atributo `selectedImageFile` está en `undefined`
+> ya que no se ha seleccionado una imagen. El resultado que esperaríamos sería que actualice los atributos del libro que se han 
+> modificado, mientras que la imagen la mantenga. 
+> 
+> En el lado del backend, al usar el endpoint de guardar `POST`, en el servicio `BookService` se hace una conversión de la
+> siguiente manera: `Book book = this.bookMapper.toBook(request);`, es decir, si estamos actualizando un libro, se crea una nueva
+> instancia con el objeto que viene en el request. Si ingresamos dentro del método `toBook` no se está trabajando con el atributo
+> `cover` y eso está bien, dado que por el request no viene dicho atributo, pero estaría bien si es para el guardar `POST`, pero si
+> es para actualizar, se estaría colocando al atributo `cover` como `null` y eso hace que cuando se `"actualice"` un libro que
+> tiene una imagen ya cargada, esta se elimine o se coloque en `null` el atributo `cover` en la base de datos.
+>
+> `Resumen`, mejorar la funcionalidad de actualizar un libro creando un endpoint `PUT` propio para su actualización.
+
+
+Recordemos que en el archivo de rutas hemos definido al `ManageBookComponent` como componente para realizar la actualización. Este
+es el mismo componente que usamos para la creación de un libro:
+
+```typescript
+//book-network-frontend\src\app\books\books.routes.ts
+export default [
+  {
+    path: '',
+    component: BookLayoutPageComponent,
+    children: [
+      {
+        path: '',
+        component: BookListComponent,
+      },
+      {
+        path: 'my-books',
+        loadComponent: () => import('./pages/my-books/my-books.component')
+      },
+      {
+        path: 'manage',
+        loadComponent: () => import('./pages/manage-book/manage-book.component')
+      },
+      {
+        path: 'manage/:bookId',
+        loadComponent: () => import('./pages/manage-book/manage-book.component')
+      },
+      { path: '**', redirectTo: '', },
+    ],
+  }
+] as Routes;
+```
+
+Como el componente `ManageBookComponent` ya lo teníamos implementado para la funcionalidad de crear un libro, en este apartado agregaremos cierto código que nos permitirá mostrar los datos de un libro para su actualización. A continuación se muestra solo la parte del código que se agregó para la actualización junto a algunos códigos ya anteriormente implementados:
+
+```typescript
+
+@Component({
+  selector: 'app-manage-book',
+  standalone: true,
+  imports: [ReactiveFormsModule, RouterLink],
+  templateUrl: './manage-book.component.html',
+  styleUrl: './manage-book.component.scss'
+})
+export default class ManageBookComponent implements OnInit {
+
+  private _router = inject(Router);
+  private _activatedRoute = inject(ActivatedRoute);
+  private _formBuilder = inject(NonNullableFormBuilder);
+  private _bookService = inject(BookService);
+
+  public form: FormGroup = this._formBuilder.group({
+    id: [null],
+    shareable: [null],
+    authorName: [''],
+    isbn: [''],
+    synopsis: [''],
+    title: [''],
+  });
+  public errorMessages: string[] = [];
+  public selectedImageFile?: File;
+  public imagePreview?: string;
+
+  ngOnInit(): void {
+    this._activatedRoute.params
+      .pipe(
+        filter(({ bookId }) => bookId),
+        switchMap(({ bookId }) => this._bookService.findBookById({ bookId }))
+      )
+      .subscribe({
+        next: bookResponse => {
+          console.log(bookResponse);
+          this.form.reset(bookResponse);
+
+          if (bookResponse.cover) {
+            this.imagePreview = `data:image/jpg;base64,${bookResponse.cover}`;
+          }
+        },
+        error: err => console.log(err)
+      });
+  }
+
+  /* other codes */
+}
+```
+
+Para finalizar, la pregunta **¿cómo llegamos a ver la vista de actualizar un libro?**, bueno para eso ya teníamos definido un método en nuestro componente `MyBooksComponent` el cual nos permite redireccionar hacia la ruta para actualizar el libro:
+
+```typescript
+
+@Component({
+  selector: 'app-my-books',
+  standalone: true,
+  imports: [BookCardComponent, RouterLink],
+  templateUrl: './my-books.component.html',
+  styleUrl: './my-books.component.scss'
+})
+export default class MyBooksComponent implements OnInit {
+
+  private _router = inject(Router);
+  
+  /* other methods and attributes*/
+
+  public editBook(book: BookResponse) {
+    this._router.navigate(['/books', 'manage', book.id]);
+  }
+
+}
+```

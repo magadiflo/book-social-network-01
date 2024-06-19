@@ -1,7 +1,7 @@
-import { Component, inject } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { FormGroup, NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
-import { Observable, concatMap, of } from 'rxjs';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Observable, concatMap, filter, of, switchMap } from 'rxjs';
 
 import { BookService } from '../../../services/services';
 import { BookRequest } from '../../../services/models';
@@ -13,9 +13,10 @@ import { BookRequest } from '../../../services/models';
   templateUrl: './manage-book.component.html',
   styleUrl: './manage-book.component.scss'
 })
-export default class ManageBookComponent {
+export default class ManageBookComponent implements OnInit {
 
   private _router = inject(Router);
+  private _activatedRoute = inject(ActivatedRoute);
   private _formBuilder = inject(NonNullableFormBuilder);
   private _bookService = inject(BookService);
 
@@ -30,6 +31,25 @@ export default class ManageBookComponent {
   public errorMessages: string[] = [];
   public selectedImageFile?: File;
   public imagePreview?: string;
+
+  ngOnInit(): void {
+    this._activatedRoute.params
+      .pipe(
+        filter(({ bookId }) => bookId),
+        switchMap(({ bookId }) => this._bookService.findBookById({ bookId }))
+      )
+      .subscribe({
+        next: bookResponse => {
+          console.log(bookResponse);
+          this.form.reset(bookResponse);
+
+          if (bookResponse.cover) {
+            this.imagePreview = `data:image/jpg;base64,${bookResponse.cover}`;
+          }
+        },
+        error: err => console.log(err)
+      });
+  }
 
   public onFileSelected(event: Event) {
     this.selectedImageFile = (event.target as HTMLInputElement).files![0];
