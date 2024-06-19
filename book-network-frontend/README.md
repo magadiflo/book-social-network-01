@@ -1828,3 +1828,44 @@ export default class MyBooksComponent implements OnInit {
 
 }
 ```
+
+## Implementa la función de compartir
+
+Para saber si un libro se puede compartir o para ser más técnicos está con el atributo `shareable = true` vamos a agregar un estilo en el card de libros, de tal forma que los bordes de un card se pintan de verde singificará que puede ser compartido.
+
+```html
+<!-- book-network-frontend\src\app\books\components\book-card\book-card.component.html -->
+<div class="card border-3" style="width: 18rem;" [class.border-success]="book.shareable" [class.border-warning]="book.archived">
+  <img height="200" [src]="book | bookImage" class="card-img-top" alt="...">
+  <!-- more tags html -->
+</div>
+```
+
+Ahora, debemos implementar la funcionalidad para que, cada vez que se de click en el botón de compartir pues el libro pueda ser compartido y el borde se pinte de verde.
+
+```typescript
+//book-network-frontend\src\app\books\pages\my-books\my-books.component.ts
+@Component({
+  selector: 'app-my-books',
+  standalone: true,
+  imports: [BookCardComponent, RouterLink],
+  templateUrl: './my-books.component.html',
+  styleUrl: './my-books.component.scss'
+})
+export default class MyBooksComponent implements OnInit {
+
+  /* other codes */
+
+  public shareBook(book: BookResponse) {
+    this._bookService.updateShareableStatus({ bookId: book.id! })
+      .subscribe({
+        next: bookId => {
+          console.log(bookId);
+          book.shareable = !book.shareable;
+        }
+      });
+  }
+
+  /* another moethod */
+}
+```
