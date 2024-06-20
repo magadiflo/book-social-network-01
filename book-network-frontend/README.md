@@ -1901,3 +1901,262 @@ export default class MyBooksComponent implements OnInit {
   /* other methods */
 }
 ```
+
+## Implementa la funcionalidad de mis libros prestados
+
+Para esta nueva funcionalidad debemos crear un componente al que le llamaremos `BorrowedBookList`:
+
+```typescript
+
+@Component({
+  selector: 'app-borrowed-book-list',
+  standalone: true,
+  imports: [ReactiveFormsModule, RatingComponent],
+  templateUrl: './borrowed-book-list.component.html',
+  styleUrl: './borrowed-book-list.component.scss'
+})
+export default class BorrowedBookListComponent implements OnInit {
+
+  private _bookService = inject(BookService);
+  private _feedbackService = inject(FeedbackService);
+  private _formBuilder = inject(NonNullableFormBuilder);
+
+  public form: FormGroup = this._formBuilder.group({
+    bookId: [null],
+    note: [0],
+    comment: [''],
+  });
+  public borrowedBooks?: PageResponseBorrowedBookResponse;
+  public selectedBook?: BorrowedBookResponse;
+  public page: number = 0;
+  public size: number = 5;
+
+  ngOnInit(): void {
+    this.findAllBorrowedBooks();
+  }
+
+  public findAllBorrowedBooks(): void {
+    this._bookService.findAllBorrowedBooks({ page: this.page, size: this.size })
+      .subscribe({
+        next: pageResponseBorrowed => {
+          console.log(pageResponseBorrowed);
+          this.borrowedBooks = pageResponseBorrowed;
+        }
+      })
+  }
+
+  public returnBorrowedBook(book: BorrowedBookResponse): void {
+    this.form.get('bookId')?.patchValue(book.id);
+    this.selectedBook = book;
+    console.log(book);
+  }
+
+  public returnBook(withFeedback: boolean): void {
+    this._bookService.returnBorrowBook({ bookId: this.selectedBook?.id! })
+      .subscribe({
+        next: bookTransactionHistoryId => {
+          if (withFeedback) {
+            this.giveFeedback();
+          }
+          this.selectedBook = undefined;
+          this.findAllBorrowedBooks();
+        }
+      });
+  }
+
+  public goToPage(page: number): void {
+    this.page = page;
+    this.findAllBorrowedBooks();
+  }
+
+  public goToFirstPage(): void {
+    this.page = 0;
+    this.findAllBorrowedBooks();
+  }
+
+  public goToLastPage(): void {
+    this.page = this.borrowedBooks?.totalPages as number - 1;
+    this.findAllBorrowedBooks();
+  }
+
+  public goToPreviousPage(): void {
+    this.page--;
+    this.findAllBorrowedBooks();
+  }
+
+  public goToNextPage(): void {
+    this.page++;
+    this.findAllBorrowedBooks();
+  }
+
+  private giveFeedback(): void {
+    this._feedbackService.saveFeedback({ body: this.form.value as FeedbackRequest })
+      .subscribe({
+        next: feedbackId => {
+          console.log({ feedbackId });
+        }
+      });
+  }
+}
+```
+
+```html
+<div class="container mt-4">
+  <h2>Mis libros prestados</h2>
+  <hr>
+  @if (selectedBook) {
+  <div class="row">
+    <div class="d-flex flex-column col-12 col-md-6">
+      <h5>Devolver y compartir comentarios</h5>
+      <div class="d-flex flex-column col-12">
+        <div class="d-flex">
+          <div class="col-3">
+            <strong>Título</strong>
+          </div>
+          <div class="col-9">{{ selectedBook.title }}</div>
+        </div>
+        <div class="d-flex">
+          <div class="col-3">
+            <strong>Autor</strong>
+          </div>
+          <div class="col-9">{{ selectedBook.authorName }}</div>
+        </div>
+        <div class="d-flex">
+          <div class="col-3">
+            <strong>ISBN</strong>
+          </div>
+          <div class="col-9">{{ selectedBook.isbn }}</div>
+        </div>
+        <div class="d-flex">
+          <div class="col-3">
+            <strong>Valoración</strong>
+          </div>
+          <div class="col-9">{{ selectedBook.rate }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="d-flex flex-column col-12 col-md-6">
+      <form [formGroup]="form" class="row g-3">
+        <div class="mb-3">
+          <input type="range" formControlName="note" class="form-range w-25" id="note" min="0" max="5" step="0.5">
+          <rating [rating]="form.get('note')?.value" />
+          {{ form.get('note')?.value }}
+        </div>
+        <div class="mb-3">
+          <label for="comment" class="form-label">Comentario</label>
+          <textarea formControlName="comment" class="form-control" rows="2"></textarea>
+        </div>
+        <div class="d-flex justify-content-end gap-2 col-12">
+          <button type="button" (click)="returnBook(true)" class="btn btn-outline-primary">
+            <i class="fas fa-save"></i>&nbsp;Califica el libro y regrésalo
+          </button>
+          <button type="button" (click)="returnBook(false)" class="btn btn-outline-success">
+            <i class="fa-solid fa-paper-plane"></i>&nbsp; Solo regrésalo
+          </button>
+          <button type="button" (click)="selectedBook = undefined" class="btn btn-outline-danger">
+            <i class="fas fa-times"></i>&nbsp; Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  } @else {
+  @if (borrowedBooks) {
+  <div class="mt-5">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">#</th>
+          <th scope="col">Título</th>
+          <th scope="col">Autor</th>
+          <th scope="col">ISBN</th>
+          <th scope="col">Valoración</th>
+          <th scope="col">
+            <i class="fas fa-cogs"></i>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (book of borrowedBooks.content; track $index) {
+        <tr>
+          <td>{{ $index + 1 }}</td>
+          <td>{{ book.title }}</td>
+          <td>{{ book.authorName }}</td>
+          <td>{{ book.isbn }}</td>
+          <td>
+            <i class="fas fa-star text-warning"></i> {{ book.rate }}
+          </td>
+          <td>
+            <div class="d-flex gap-2">
+              @if (book.returned) {
+              <i class="fa-regular fa-paper-plane text-primary"></i>
+              } @else {
+              <i (click)="returnBorrowedBook(book)" class="fa-solid fa-paper-plane text-success cursor-pointer"></i>
+              }
+              <i class="fa-solid fa-circle-check" [class.text-success]="book.returnApproved"></i>
+            </div>
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <div class="d-flex justify-content-center mt-3">
+    <nav aria-label="Page navigation example">
+      <ul class="pagination">
+        <li class="page-item" [class.disabled]="borrowedBooks.first">
+          <a class="page-link" href="#" (click)="$event.preventDefault();goToFirstPage();" aria-label="Previous">
+            <i class="fa-solid fa-angles-left"></i>
+          </a>
+        </li>
+        <li class="page-item" [class.disabled]="borrowedBooks.first">
+          <a class="page-link" href="#" (click)="$event.preventDefault();goToPreviousPage();" aria-label="Previous">
+            <i class="fa-solid fa-angle-left"></i>
+          </a>
+        </li>
+
+        @for (page of [].constructor(borrowedBooks.totalPages); track $index) {
+        <li class="page-item" [class.active]="borrowedBooks.number == $index">
+          <a class="page-link" href="#" (click)="$event.preventDefault();goToPage($index);">{{ $index + 1 }}</a>
+        </li>
+        }
+
+        <li class="page-item" [class.disabled]="borrowedBooks.last">
+          <a class="page-link" href="#" (click)="$event.preventDefault();goToNextPage();" aria-label="Next">
+            <i class="fa-solid fa-angle-right"></i>
+          </a>
+        </li>
+        <li class="page-item" [class.disabled]="borrowedBooks.last">
+          <a class="page-link" href="#" (click)="$event.preventDefault();goToLastPage();" aria-label="Next">
+            <i class="fa-solid fa-angles-right"></i>
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+  } @else {
+  <div class="alert alert-warning">Buscando lista de libros prestados...</div>
+  }
+  }
+</div>
+```
+
+Agregaremos una ruta adicional para mostrar nuestro nuevo componente `BorrowedBookListComponent`:
+
+```typescript
+//book-network-frontend\src\app\books\books.routes.ts
+export default [
+  {
+    path: '',
+    component: BookLayoutPageComponent,
+    children: [
+      /* another route */
+      {
+        path: 'my-borrowed-books',
+        loadComponent: () => import('./pages/borrowed-book-list/borrowed-book-list.component')
+      },
+      /* other routes */
+    ],
+  }
+] as Routes;
+```
