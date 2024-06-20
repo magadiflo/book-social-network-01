@@ -21,6 +21,10 @@ export default [
         loadComponent: () => import('./pages/borrowed-book-list/borrowed-book-list.component')
       },
       {
+        path: 'my-returned-books',
+        loadComponent: () => import('./pages/return-books/return-books.component')
+      },
+      {
         path: 'manage',
         loadComponent: () => import('./pages/manage-book/manage-book.component')
       },

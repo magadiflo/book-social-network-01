@@ -2160,3 +2160,202 @@ export default [
   }
 ] as Routes;
 ```
+
+## Implemeta la página del libro devuelto
+
+Crearemos un nuevo componente para mostrar la lista de los libros que será aprobados para su devolución. Además de crear una nueva ruta para este mismo componente. La implementación de este componente será similar a lo que hemos trabajado en el componente anterior con algunas modificaciones:
+
+```typescript
+
+@Component({
+  selector: 'app-return-books',
+  standalone: true,
+  imports: [],
+  templateUrl: './return-books.component.html',
+  styleUrl: './return-books.component.scss'
+})
+export default class ReturnBooksComponent {
+
+  private _bookService = inject(BookService);
+
+  public returnedBooks?: PageResponseBorrowedBookResponse;
+  public message: string = '';
+  public level: string = 'success';
+  public page: number = 0;
+  public size: number = 5;
+
+  ngOnInit(): void {
+    this.findAllReturnedBooks();
+  }
+
+  public findAllReturnedBooks(): void {
+    this._bookService.findAllReturnedBooks({ page: this.page, size: this.size })
+      .subscribe({
+        next: pageResponseBorrowed => {
+          console.log(pageResponseBorrowed);
+          this.returnedBooks = pageResponseBorrowed;
+        }
+      })
+  }
+
+  public approveBookReturn(book: BorrowedBookResponse) {
+    if (!book.returned) {
+      return;
+    }
+    this._bookService.approvedReturnBorrowBook({ bookId: book.id! })
+      .subscribe({
+        next: bookTransactionHistoryId => {
+          console.log({ bookTransactionHistoryId });
+          this.message = 'Devolución del libro aprobada';
+          this.level = 'success';
+          this.findAllReturnedBooks();
+        },
+        error: err => {
+          console.log(err);
+          this.message = err.error.error;
+          this.level = 'error';
+        }
+      });
+  }
+
+  public goToPage(page: number): void {
+    this.page = page;
+    this.findAllReturnedBooks();
+  }
+
+  public goToFirstPage(): void {
+    this.page = 0;
+    this.findAllReturnedBooks();
+  }
+
+  public goToLastPage(): void {
+    this.page = this.returnedBooks?.totalPages as number - 1;
+    this.findAllReturnedBooks();
+  }
+
+  public goToPreviousPage(): void {
+    this.page--;
+    this.findAllReturnedBooks();
+  }
+
+  public goToNextPage(): void {
+    this.page++;
+    this.findAllReturnedBooks();
+  }
+
+}
+```
+
+```html
+@if (returnedBooks) {
+<div class="container mt-5">
+  <h3>Lista de libros</h3>
+  @if (message) {
+  <div class="alert" [class.alert-success]="level == 'success'" [class.alert-danger]="level == 'error'">
+    {{ message }}
+  </div>
+  }
+  <hr>
+  <table class="table">
+    <thead>
+      <tr>
+        <th scope="col">#</th>
+        <th scope="col">Título</th>
+        <th scope="col">Autor</th>
+        <th scope="col">ISBN</th>
+        <th scope="col">Valoración</th>
+        <th scope="col">
+          <i class="fas fa-cogs"></i>
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (book of returnedBooks.content; track $index) {
+      <tr>
+        <td>{{ $index + 1 }}</td>
+        <td>{{ book.title }}</td>
+        <td>{{ book.authorName }}</td>
+        <td>{{ book.isbn }}</td>
+        <td>
+          <i class="fas fa-star text-warning"></i> {{ book.rate }}
+        </td>
+        <td>
+          <div class="d-flex gap-2">
+            @if (book.returned) {
+            <i class="fa-regular fa-paper-plane text-primary"></i>
+            } @else {
+            <i class="fa-solid fa-paper-plane text-success"></i>
+            }
+            <i class="fa-solid fa-circle-check cursor-pointer" (click)="approveBookReturn(book)"
+              [class.text-success]="book.returnApproved"></i>
+          </div>
+        </td>
+      </tr>
+      } @empty {
+      <tr>
+        <td colspan="6">
+          <div class="alert alert-info">No hay libros devueltos</div>
+        </td>
+      </tr>
+      }
+    </tbody>
+  </table>
+</div>
+<div class="d-flex justify-content-center mt-3">
+  <nav aria-label="Page navigation example">
+    <ul class="pagination">
+      <li class="page-item" [class.disabled]="returnedBooks.first">
+        <a class="page-link" href="#" (click)="$event.preventDefault();goToFirstPage();" aria-label="Previous">
+          <i class="fa-solid fa-angles-left"></i>
+        </a>
+      </li>
+      <li class="page-item" [class.disabled]="returnedBooks.first">
+        <a class="page-link" href="#" (click)="$event.preventDefault();goToPreviousPage();" aria-label="Previous">
+          <i class="fa-solid fa-angle-left"></i>
+        </a>
+      </li>
+
+      @for (page of [].constructor(returnedBooks.totalPages); track $index) {
+      <li class="page-item" [class.active]="returnedBooks.number == $index">
+        <a class="page-link" href="#" (click)="$event.preventDefault();goToPage($index);">{{ $index + 1 }}</a>
+      </li>
+      }
+
+      <li class="page-item" [class.disabled]="returnedBooks.last">
+        <a class="page-link" href="#" (click)="$event.preventDefault();goToNextPage();" aria-label="Next">
+          <i class="fa-solid fa-angle-right"></i>
+        </a>
+      </li>
+      <li class="page-item" [class.disabled]="returnedBooks.last">
+        <a class="page-link" href="#" (click)="$event.preventDefault();goToLastPage();" aria-label="Next">
+          <i class="fa-solid fa-angles-right"></i>
+        </a>
+      </li>
+    </ul>
+  </nav>
+</div>
+
+} @else {
+<div class="alert alert-warning">Recuperando los libros devueltos...</div>
+}
+```
+
+Agregamos la ruta para mostrar la aprovación de la devolución de los libros:
+
+```typescript
+
+export default [
+  {
+    path: '',
+    component: BookLayoutPageComponent,
+    children: [
+      /* other paths */
+      {
+        path: 'my-returned-books',
+        loadComponent: () => import('./pages/return-books/return-books.component')
+      },
+      /* other paths */
+    ],
+  }
+] as Routes;
+```

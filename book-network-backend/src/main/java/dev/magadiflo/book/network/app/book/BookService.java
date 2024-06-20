@@ -196,8 +196,8 @@ public class BookService {
         }
 
         User user = (User) authentication.getPrincipal();
-        if (Objects.equals(book.getOwner().getId(), user.getId())) {
-            throw new OperationNotPermittedException("No puedes pedir prestado o retornar tu propio libro");
+        if (!Objects.equals(book.getOwner().getId(), user.getId())) {
+            throw new OperationNotPermittedException("No puedes aprobar la devolución de un libro que no te pertenece");
         }
 
         BookTransactionHistory bookTransactionHistory = this.transactionHistoryRepository.findByBookIdAndOwnerId(bookId, user.getId())
