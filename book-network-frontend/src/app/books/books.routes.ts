@@ -2,11 +2,13 @@ import { Routes } from '@angular/router';
 
 import { BookLayoutPageComponent } from './pages/book-layout-page/book-layout-page.component';
 import { BookListComponent } from './pages/book-list/book-list.component';
+import { canActivateAuthGuard } from '../guards/auth.guard';
 
 export default [
   {
     path: '',
     component: BookLayoutPageComponent,
+    canActivate: [canActivateAuthGuard],
     children: [
       {
         path: '',

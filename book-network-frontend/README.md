@@ -2359,3 +2359,157 @@ export default [
   }
 ] as Routes;
 ```
+
+## Asegurar las rutas con AuthGuard
+
+Agregamos la siguiente dependencia que luego la usaremos en la clase de servicio. Esta dependencia nos ayudará a manipular el `jwt`.
+
+```bash
+$ npm install @auth0/angular-jwt
+```
+
+Ahora, antes de crear los guards vamos a agregar código adicional en el `TokenService` haciendo uso de la dependencia anteriormente instalada.
+
+```typescript
+import { Injectable } from '@angular/core';
+import { JwtHelperService } from '@auth0/angular-jwt';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class TokenService {
+
+  public set token(token: string) {
+    localStorage.setItem('token', token);
+  }
+
+  public get token(): string {
+    return localStorage.getItem('token') as string;
+  }
+
+  public get fullName(): string {
+    if (this.isTokenNotValid()) {
+      return '';
+    }
+    const token = this.token;
+    const jwtHelper = new JwtHelperService();
+    const decodeToken = jwtHelper.decodeToken(token);
+    return decodeToken.fullName;
+  }
+
+  public logout() {
+    localStorage.clear();
+    window.location.reload();
+  }
+
+  public isTokenNotValid(): boolean {
+    return !this.isTokenValid();
+  }
+
+  public isTokenValid(): boolean {
+    const token = this.token;
+    if (!token) {
+      return false
+    }
+
+    const jwtHelper = new JwtHelperService();
+    const isTokenExpired = jwtHelper.isTokenExpired(token);
+
+    if (isTokenExpired) {
+      this.logout();
+      return false;
+    }
+
+    return true;
+  }
+
+}
+```
+
+Los guards nos ayudarán a proteger las rutas, de manera tal que verificarán si es posible acceder a dicha ruta, en caso contrario lanzará al usuario a la página del login.
+
+```typescript
+//book-network-frontend\src\app\guards\auth.guard.ts
+export const canMatchAuthGuard: CanMatchFn = (route, segments) => {
+  console.log('Ejecutnado canMatchAuthGuard()');
+  return checkAuthStatus();
+}
+
+export const canActivateAuthGuard: CanActivateFn = (route, state) => {
+  console.log('Ejecutnado canActivateAuthGuard()');
+  return checkAuthStatus();
+};
+
+const checkAuthStatus = () => {
+  const tokenService = inject(TokenService);
+  const router = inject(Router);
+
+  if (tokenService.isTokenNotValid()) {
+    router.navigate(['/auth', 'login']);
+    return false;
+  }
+
+  return true;
+}
+```
+
+Si observamos el código anterior, dentro de un mismo archivo he agregado dos guards, uno para usarlo con las rutas del tipo `LazyLoad` y la otra par usarlo directamente en la ruta que carga un componente. Las rutas que usan LazyLoad tendrán el guard `canMatchAuthGuard` del tipo `CanMatchFn`; este tipo de guard evita descargar el módulo o componente al que está accediendo el usuario si es que se ha comprobado que dicho usuario no debe acceder a dicha ruta. Por otro lado, el guard `canActivateAuthGuard` que es del tipo `CanActivateFn` lo usamos directamente en una ruta de un componente; este tipo de guard evita que un usuario ingrese a la ruta y por ende vea el componente si es que se ha comprobado que el usuario no debe ingresar.
+
+
+Finalmente, en la ruta principal agregamos el guard `canMatchAuthGuard`, ya que estamos haciendo uso del `loadChildren()` es decir del `lazyLoad`; y en el archivo de rutas hijas agregamos el `canActivateAuthGuard`, ya que usamos directamente el componente `BookListComponent`. 
+
+Podríamos haber agregado los guard a las otras rutas hijas de la ruta principal de `books`, me refiero a `my-books, my-borrowed-books`, etc. pero los guards que se agregarían a dichas rutas tendrían que ver con roles  y eso es algo que no estamos trabajando por el momento en esta aplicación, así que solo basta con el guard que agregamos a la ruta principal de la ruta hija.
+
+```typescript
+//book-network-frontend\src\app\app.routes.ts
+export const APP_ROUTES: Routes = [
+  {
+    path: 'auth',
+    loadChildren: () => import('./auth/auth.routes'),
+  },
+  {
+    path: 'books',
+    loadChildren: () => import('./books/books.routes'),
+    canMatch: [canMatchAuthGuard],
+  },
+  { path: '**', redirectTo: '/auth', },
+];
+```
+
+```typescript
+//book-network-frontend\src\app\books\books.routes.ts
+export default [
+  {
+    path: '',
+    component: BookLayoutPageComponent,
+    canActivate: [canActivateAuthGuard],
+    children: [
+      {
+        path: '',
+        component: BookListComponent,
+      },
+      {
+        path: 'my-books',
+        loadComponent: () => import('./pages/my-books/my-books.component')
+      },
+      {
+        path: 'my-borrowed-books',
+        loadComponent: () => import('./pages/borrowed-book-list/borrowed-book-list.component')
+      },
+      {
+        path: 'my-returned-books',
+        loadComponent: () => import('./pages/return-books/return-books.component')
+      },
+      {
+        path: 'manage',
+        loadComponent: () => import('./pages/manage-book/manage-book.component')
+      },
+      {
+        path: 'manage/:bookId',
+        loadComponent: () => import('./pages/manage-book/manage-book.component')
+      },
+      { path: '**', redirectTo: '', },
+    ],
+  }
+] as Routes;
+```
