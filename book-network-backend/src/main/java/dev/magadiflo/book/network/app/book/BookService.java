@@ -207,10 +207,36 @@ public class BookService {
         return this.transactionHistoryRepository.save(bookTransactionHistory).getId();
     }
 
+    public Long updateBook(BookRequest request, Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        Book bookDB = this.bookRepository.findById(request.id())
+                .orElseThrow(() -> new EntityNotFoundException("No se encontró el libro con id " + request.id()));
+
+        Book book = this.bookMapper.toBook(request);
+        book.setBookCover(bookDB.getBookCover());
+        book.setArchived(bookDB.isArchived());
+        book.setOwner(user);
+
+        return this.bookRepository.save(book).getId();
+    }
+
     public void uploadBookCoverPicture(Long bookId, MultipartFile file, Authentication authentication) {
         User user = (User) authentication.getPrincipal();
         Book book = this.bookRepository.findById(bookId)
                 .orElseThrow(() -> new EntityNotFoundException("No se encontró el libro con id " + bookId));
+        String bookCover = this.fileStorageService.saveFile(file, user.getId());
+        book.setBookCover(bookCover);
+
+        this.bookRepository.save(book);
+    }
+
+    public void updateUploadBookCoverPicture(Long bookId, MultipartFile file, Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        Book book = this.bookRepository.findById(bookId)
+                .orElseThrow(() -> new EntityNotFoundException("No se encontró el libro con id " + bookId));
+
+        this.fileStorageService.deleteImageIfExists(book.getBookCover());
+
         String bookCover = this.fileStorageService.saveFile(file, user.getId());
         book.setBookCover(bookCover);
 

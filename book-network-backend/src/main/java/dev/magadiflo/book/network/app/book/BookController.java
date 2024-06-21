@@ -70,6 +70,18 @@ public class BookController {
         return ResponseEntity.accepted().build();
     }
 
+    @PutMapping
+    public ResponseEntity<Long> updateBook(@Valid @RequestBody BookRequest request, Authentication authentication) {
+        return ResponseEntity.ok(this.bookService.updateBook(request, authentication));
+    }
+
+    @PatchMapping(path = "/cover-update/{bookId}", consumes = "multipart/form-data")
+    @ResponseStatus(HttpStatus.ACCEPTED) //<-- Solo es para forzar que OpenAPI/Swagger detecte el status de retorno
+    public ResponseEntity<Void> updateUploadBookCoverPicture(@PathVariable Long bookId, @Parameter @RequestPart MultipartFile file, Authentication authentication) {
+        this.bookService.updateUploadBookCoverPicture(bookId, file, authentication);
+        return ResponseEntity.accepted().build();
+    }
+
     @PatchMapping(path = "/shareable/{bookId}")
     public ResponseEntity<Long> updateShareableStatus(@PathVariable Long bookId, Authentication authentication) {
         return ResponseEntity.ok(this.bookService.updateShareableStatus(bookId, authentication));

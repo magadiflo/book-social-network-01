@@ -2694,6 +2694,120 @@ public interface BookRepository extends JpaRepository<Book, Long> {
 }
 ````
 
+## Implementa el método actualizar book
+
+> Este apartado no está en el tutorial original, fue agregado por mí. En el tutorial, el endpoint construido
+> para guardar un libro también es usado para actualizar. Según la evaluación y pruebas que realicé, utilizar
+> el mismo endpoint para actualizar trae ciertos errores, así que decidí crear un endpoint especializado en la
+> actualización de un libro. Este endpoint debería recibir el id del libro como un PathVariable y el contenido a
+> actualizar por el requestBody, pero como ya se ha construido el proyecto he tratado de adaptar lo mejor que pude,
+> es decir, en este caso, todo el contenido viene en el requestBody.
+>
+> También he creado un endpoint propio para la actualización de la imagen del libro.
+
+A continuación se muestra los endpoints correspondientes a la actualización de un libo y su imagen:
+
+````java
+
+@Tag(name = "Book", description = "API de Book")
+@RequiredArgsConstructor
+@RestController
+@RequestMapping(path = "/api/v1/books")
+public class BookController {
+
+    private final BookService bookService;
+
+    /* other endpoints */
+
+    @PutMapping
+    public ResponseEntity<Long> updateBook(@Valid @RequestBody BookRequest request, Authentication authentication) {
+        return ResponseEntity.ok(this.bookService.updateBook(request, authentication));
+    }
+
+    @PatchMapping(path = "/cover-update/{bookId}", consumes = "multipart/form-data")
+    @ResponseStatus(HttpStatus.ACCEPTED) //<-- Solo es para forzar que OpenAPI/Swagger detecte el status de retorno
+    public ResponseEntity<Void> updateUploadBookCoverPicture(@PathVariable Long bookId, @Parameter @RequestPart MultipartFile file, Authentication authentication) {
+        this.bookService.updateUploadBookCoverPicture(bookId, file, authentication);
+        return ResponseEntity.accepted().build();
+    }
+
+    /* other endpoints */
+}
+````
+
+Los endpoints anteriores están haciendo uso de métodos ubicados en la clase de servicio BookService, dichos métodos
+se muestran a continuación:
+
+````java
+
+@RequiredArgsConstructor
+@Service
+public class BookService {
+
+    private final BookRepository bookRepository;
+    private final BookTransactionHistoryRepository transactionHistoryRepository;
+    private final BookMapper bookMapper;
+    private final FileStorageService fileStorageService;
+
+    /* other methods */
+
+    public Long updateBook(BookRequest request, Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        Book bookDB = this.bookRepository.findById(request.id())
+                .orElseThrow(() -> new EntityNotFoundException("No se encontró el libro con id " + request.id()));
+
+        Book book = this.bookMapper.toBook(request);
+        book.setBookCover(bookDB.getBookCover());
+        book.setArchived(bookDB.isArchived());
+        book.setOwner(user);
+
+        return this.bookRepository.save(book).getId();
+    }
+
+    public void updateUploadBookCoverPicture(Long bookId, MultipartFile file, Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        Book book = this.bookRepository.findById(bookId)
+                .orElseThrow(() -> new EntityNotFoundException("No se encontró el libro con id " + bookId));
+
+        this.fileStorageService.deleteImageIfExists(book.getBookCover());
+
+        String bookCover = this.fileStorageService.saveFile(file, user.getId());
+        book.setBookCover(bookCover);
+
+        this.bookRepository.save(book);
+    }
+}
+````
+
+Finalmente, en la clase `FileStorageService` agregamos el método para eliminar la imagen de un libro que se está
+actualizando con una nueva imagen. De esa manera, evitamos que el servidor almacene imágenes que ya no están siendo
+usados por ningún registro en la base de datos.
+
+````java
+
+@Slf4j
+@RequiredArgsConstructor
+@Service
+public class FileStorageService {
+
+    /* other codes */
+
+    public void deleteImageIfExists(String bookCover) {
+        if (Strings.isNotBlank(bookCover)) {
+            try {
+                Path path = Paths.get(bookCover);
+                Files.deleteIfExists(path);
+            } catch (IOException | InvalidPathException e) {
+                log.error("Ocurrió un problema al eliminar la imagen: {}", e.getMessage());
+                e.printStackTrace();
+            }
+        }
+    }
+
+    /* other codes */
+}
+````
+
 ## Implementa el método find book by id
 
 Antes de implementar el método `findBookById` vamos a actualizar la entidad `Book` agregándole un método que nos

@@ -3,6 +3,7 @@ package dev.magadiflo.book.network.app.file;
 import jakarta.annotation.Nonnull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.logging.log4j.util.Strings;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -10,6 +11,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -24,6 +26,18 @@ public class FileStorageService {
     public String saveFile(@Nonnull MultipartFile file, @Nonnull Long userId) {
         final String fileUploadSubPath = "users" + File.separator + userId;
         return this.uploadFile(file, fileUploadSubPath);
+    }
+
+    public void deleteImageIfExists(String bookCover) {
+        if (Strings.isNotBlank(bookCover)) {
+            try {
+                Path path = Paths.get(bookCover);
+                Files.deleteIfExists(path);
+            } catch (IOException | InvalidPathException e) {
+                log.error("Ocurrió un problema al eliminar la imagen: {}", e.getMessage());
+                e.printStackTrace();
+            }
+        }
     }
 
     private String uploadFile(@Nonnull MultipartFile file, @Nonnull String fileUploadSubPath) {
