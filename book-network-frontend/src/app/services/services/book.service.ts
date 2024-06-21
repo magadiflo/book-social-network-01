@@ -32,8 +32,12 @@ import { saveBook } from '../fn/book/save-book';
 import { SaveBook$Params } from '../fn/book/save-book';
 import { updateArchivedStatus } from '../fn/book/update-archived-status';
 import { UpdateArchivedStatus$Params } from '../fn/book/update-archived-status';
+import { updateBook } from '../fn/book/update-book';
+import { UpdateBook$Params } from '../fn/book/update-book';
 import { updateShareableStatus } from '../fn/book/update-shareable-status';
 import { UpdateShareableStatus$Params } from '../fn/book/update-shareable-status';
+import { updateUploadBookCoverPicture } from '../fn/book/update-upload-book-cover-picture';
+import { UpdateUploadBookCoverPicture$Params } from '../fn/book/update-upload-book-cover-picture';
 import { uploadBookCoverPicture } from '../fn/book/upload-book-cover-picture';
 import { UploadBookCoverPicture$Params } from '../fn/book/upload-book-cover-picture';
 
@@ -69,6 +73,31 @@ export class BookService extends BaseService {
   findAllBooks(params?: FindAllBooks$Params, context?: HttpContext): Observable<PageResponseBookResponse> {
     return this.findAllBooks$Response(params, context).pipe(
       map((r: StrictHttpResponse<PageResponseBookResponse>): PageResponseBookResponse => r.body)
+    );
+  }
+
+  /** Path part for operation `updateBook()` */
+  static readonly UpdateBookPath = '/api/v1/books';
+
+  /**
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `updateBook()` instead.
+   *
+   * This method sends `application/json` and handles request body of type `application/json`.
+   */
+  updateBook$Response(params: UpdateBook$Params, context?: HttpContext): Observable<StrictHttpResponse<number>> {
+    return updateBook(this.http, this.rootUrl, params, context);
+  }
+
+  /**
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `updateBook$Response()` instead.
+   *
+   * This method sends `application/json` and handles request body of type `application/json`.
+   */
+  updateBook(params: UpdateBook$Params, context?: HttpContext): Observable<number> {
+    return this.updateBook$Response(params, context).pipe(
+      map((r: StrictHttpResponse<number>): number => r.body)
     );
   }
 
@@ -169,6 +198,31 @@ export class BookService extends BaseService {
   updateShareableStatus(params: UpdateShareableStatus$Params, context?: HttpContext): Observable<number> {
     return this.updateShareableStatus$Response(params, context).pipe(
       map((r: StrictHttpResponse<number>): number => r.body)
+    );
+  }
+
+  /** Path part for operation `updateUploadBookCoverPicture()` */
+  static readonly UpdateUploadBookCoverPicturePath = '/api/v1/books/cover-update/{bookId}';
+
+  /**
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `updateUploadBookCoverPicture()` instead.
+   *
+   * This method sends `multipart/form-data` and handles request body of type `multipart/form-data`.
+   */
+  updateUploadBookCoverPicture$Response(params: UpdateUploadBookCoverPicture$Params, context?: HttpContext): Observable<StrictHttpResponse<void>> {
+    return updateUploadBookCoverPicture(this.http, this.rootUrl, params, context);
+  }
+
+  /**
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `updateUploadBookCoverPicture$Response()` instead.
+   *
+   * This method sends `multipart/form-data` and handles request body of type `multipart/form-data`.
+   */
+  updateUploadBookCoverPicture(params: UpdateUploadBookCoverPicture$Params, context?: HttpContext): Observable<void> {
+    return this.updateUploadBookCoverPicture$Response(params, context).pipe(
+      map((r: StrictHttpResponse<void>): void => r.body)
     );
   }
 

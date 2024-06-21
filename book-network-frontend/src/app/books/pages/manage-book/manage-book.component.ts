@@ -1,10 +1,12 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { FormGroup, NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { Observable, concatMap, filter, of, switchMap } from 'rxjs';
+import { Observable, concatMap, filter, of, switchMap, tap } from 'rxjs';
 
 import { BookService } from '../../../services/services';
 import { BookRequest } from '../../../services/models';
+
+type Action = 'create' | 'edit';
 
 @Component({
   selector: 'app-manage-book',
@@ -22,7 +24,7 @@ export default class ManageBookComponent implements OnInit {
 
   public form: FormGroup = this._formBuilder.group({
     id: [null],
-    shareable: [null],
+    shareable: [false],
     authorName: [''],
     isbn: [''],
     synopsis: [''],
@@ -31,11 +33,13 @@ export default class ManageBookComponent implements OnInit {
   public errorMessages: string[] = [];
   public selectedImageFile?: File;
   public imagePreview?: string;
+  public action: Action = 'create';
 
   ngOnInit(): void {
     this._activatedRoute.params
       .pipe(
         filter(({ bookId }) => bookId),
+        tap((_) => this.action = 'edit'),
         switchMap(({ bookId }) => this._bookService.findBookById({ bookId }))
       )
       .subscribe({
@@ -47,7 +51,10 @@ export default class ManageBookComponent implements OnInit {
             this.imagePreview = `data:image/jpg;base64,${bookResponse.cover}`;
           }
         },
-        error: err => console.log(err)
+        error: err => {
+          console.log(err);
+          this._router.navigate(['/books', 'my-books']);
+        }
       });
   }
 
@@ -85,8 +92,30 @@ export default class ManageBookComponent implements OnInit {
       });
   }
 
+  public updateBook() {
+    const request = this.form.value as BookRequest;
+    this._bookService.updateBook({ body: request })
+      .pipe(
+        concatMap(bookId => this.selectedImageFile ? this.updateUploadImage(bookId) : of(bookId))
+      )
+      .subscribe({
+        next: bookId => {
+          console.log(bookId);
+          this._router.navigate(['/books', 'my-books']);
+        },
+        error: err => {
+          console.log(err);
+          this.errorMessages = err.error.validationErrors;
+        }
+      });
+  }
+
   private uploadImage(bookId: number): Observable<void> {
     return this._bookService.uploadBookCoverPicture({ bookId, body: { file: this.selectedImageFile! } });
+  }
+
+  private updateUploadImage(bookId: number): Observable<void> {
+    return this._bookService.updateUploadBookCoverPicture({ bookId, body: { file: this.selectedImageFile! } });
   }
 
 }

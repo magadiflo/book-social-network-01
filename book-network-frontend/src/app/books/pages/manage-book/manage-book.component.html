@@ -38,9 +38,15 @@
           <label class="form-check-label" for="shareable">Compárteme</label>
         </div>
         <div class="d-flex justify-content-end gap-2 col-12">
+          @if(action == 'create') {
           <button type="button" (click)="saveBook()" class="btn btn-outline-primary">
             <i class="fas fa-save"></i>&nbsp; Guardar
           </button>
+          }@else {
+            <button type="button" (click)="updateBook()" class="btn btn-outline-primary">
+              <i class="fas fa-refresh"></i>&nbsp; Actualizar
+            </button>
+          }
           <a [routerLink]="['/books', 'my-books']" class="btn btn-link text-danger">
             <i class="fas fa-times"></i>&nbsp;Cancelar
           </a>

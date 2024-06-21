@@ -1557,7 +1557,7 @@ export default class ManageBookComponent {
 
   public form: FormGroup = this._formBuilder.group({
     id: [null],
-    shareable: [null],
+    shareable: [false],
     authorName: [''],
     isbn: [''],
     synopsis: [''],
@@ -1695,33 +1695,7 @@ Notar que hemos agregado dos rutas `manage`, una para guardar un libro y la otra
 
 ## Implementa el actualizar un libro
 
-**NOTA: Inconsistencias al actualizar un libro**
-
-> En este apartado de editar un libro, el autor utiliza el mismo endpoint que se usa para crear un libro.
-> La diferencia es que cuando edita un libro envía el id del libro en el BookRequest, mientras que cuando crea un libro,
-> el id va como null.
->
-> `¿Por qué hago esta aclaración?`, porque en el backend no se ha implementado un endpoint del tipo `PUT` para actualizar un libro,
-> cosa que cuando usamos el endpoint que es para guardar del tipo `POST`, ese endpoint tiene implementado una lógica para registrar
-> el libro y al hacer uso de ese endpoint para actualizar se presentan ciertas `inconsistencias`. 
->
-> **Por ejemplo:**, si actualizamos un libro que ya tiene una imagen, editamos algunos atributos, pero la imagen no la tocamos, al dar
-> en `guardar` para actualizar el libro, la imagen se elimina. Eso ocurre por que el atributo `selectedImageFile` está en `undefined`
-> ya que no se ha seleccionado una imagen. El resultado que esperaríamos sería que actualice los atributos del libro que se han 
-> modificado, mientras que la imagen la mantenga. 
-> 
-> En el lado del backend, al usar el endpoint de guardar `POST`, en el servicio `BookService` se hace una conversión de la
-> siguiente manera: `Book book = this.bookMapper.toBook(request);`, es decir, si estamos actualizando un libro, se crea una nueva
-> instancia con el objeto que viene en el request. Si ingresamos dentro del método `toBook` no se está trabajando con el atributo
-> `cover` y eso está bien, dado que por el request no viene dicho atributo, pero estaría bien si es para el guardar `POST`, pero si
-> es para actualizar, se estaría colocando al atributo `cover` como `null` y eso hace que cuando se `"actualice"` un libro que
-> tiene una imagen ya cargada, esta se elimine o se coloque en `null` el atributo `cover` en la base de datos.
->
-> `Resumen`, mejorar la funcionalidad de actualizar un libro creando un endpoint `PUT` propio para su actualización.
-
-
-Recordemos que en el archivo de rutas hemos definido al `ManageBookComponent` como componente para realizar la actualización. Este
-es el mismo componente que usamos para la creación de un libro:
+Recordemos que en el archivo de rutas hemos definido al `ManageBookComponent` como componente para realizar la actualización. Este es el mismo componente que usamos para la creación de un libro:
 
 ```typescript
 //book-network-frontend\src\app\books\books.routes.ts
@@ -1756,6 +1730,8 @@ Como el componente `ManageBookComponent` ya lo teníamos implementado para la fu
 
 ```typescript
 
+type Action = 'create' | 'edit';
+
 @Component({
   selector: 'app-manage-book',
   standalone: true,
@@ -1772,7 +1748,7 @@ export default class ManageBookComponent implements OnInit {
 
   public form: FormGroup = this._formBuilder.group({
     id: [null],
-    shareable: [null],
+    shareable: [false],
     authorName: [''],
     isbn: [''],
     synopsis: [''],
@@ -1781,11 +1757,13 @@ export default class ManageBookComponent implements OnInit {
   public errorMessages: string[] = [];
   public selectedImageFile?: File;
   public imagePreview?: string;
+  public action: Action = 'create';
 
   ngOnInit(): void {
     this._activatedRoute.params
       .pipe(
         filter(({ bookId }) => bookId),
+        tap((_) => this.action = 'edit'),
         switchMap(({ bookId }) => this._bookService.findBookById({ bookId }))
       )
       .subscribe({
@@ -1797,12 +1775,119 @@ export default class ManageBookComponent implements OnInit {
             this.imagePreview = `data:image/jpg;base64,${bookResponse.cover}`;
           }
         },
-        error: err => console.log(err)
+        error: err => {
+          console.log(err);
+          this._router.navigate(['/books', 'my-books']);
+        }
       });
   }
 
-  /* other codes */
+  public onFileSelected(event: Event) {
+    this.selectedImageFile = (event.target as HTMLInputElement).files![0];
+    console.log(this.selectedImageFile);
+
+    if (!this.selectedImageFile) {
+      this.imagePreview = undefined;
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.imagePreview = reader.result as string;
+    }
+    reader.readAsDataURL(this.selectedImageFile);
+  }
+
+  public saveBook() {
+    const request = this.form.value as BookRequest;
+    this._bookService.saveBook({ body: request })
+      .pipe(
+        concatMap(bookId => this.selectedImageFile ? this.uploadImage(bookId) : of(bookId))
+      )
+      .subscribe({
+        next: bookId => {
+          console.log(bookId);
+          this._router.navigate(['/books', 'my-books']);
+        },
+        error: err => {
+          console.log(err);
+          this.errorMessages = err.error.validationErrors;
+        }
+      });
+  }
+
+  public updateBook() {
+    const request = this.form.value as BookRequest;
+    this._bookService.updateBook({ body: request })
+      .pipe(
+        concatMap(bookId => this.selectedImageFile ? this.updateUploadImage(bookId) : of(bookId))
+      )
+      .subscribe({
+        next: bookId => {
+          console.log(bookId);
+          this._router.navigate(['/books', 'my-books']);
+        },
+        error: err => {
+          console.log(err);
+          this.errorMessages = err.error.validationErrors;
+        }
+      });
+  }
+
+  private uploadImage(bookId: number): Observable<void> {
+    return this._bookService.uploadBookCoverPicture({ bookId, body: { file: this.selectedImageFile! } });
+  }
+
+  private updateUploadImage(bookId: number): Observable<void> {
+    return this._bookService.updateUploadBookCoverPicture({ bookId, body: { file: this.selectedImageFile! } });
+  }
+
 }
+```
+
+Ahora, en el componente html de `ManageBookComponent` agregamos una condicional para mostrar el botón de Guardar o Actualizar según sea el caso en el que nos encontremos:
+
+```html
+<div class="container p-2">
+  <h2>Administrar mi libro</h2>
+  <hr>
+  @if (errorMessages.length) {
+  <div class="alert alert-danger mt-2" role="alert">
+    @for (message of errorMessages; track $index) {
+    <p class="p-0 m-0">{{ message }}</p>
+    }
+  </div>
+  }
+  <div class="d-flex gap-2">
+    <div class="col-3">
+      <img [src]="imagePreview || './assets/books/no_image_available.svg'" class="rounded-1" width="100%" height="100%">
+      <div class="mt-2">
+        <input type="file" (change)="onFileSelected($event)" accept="image/*" class="form-control" id="formFile">
+      </div>
+    </div>
+    <div class="col-9">
+      <form [formGroup]="form" class="row g-3" autocomplete="off">
+        <!--forms-->
+        <!--...-->
+        <!--...-->
+        <div class="d-flex justify-content-end gap-2 col-12">
+          @if(action == 'create') {
+          <button type="button" (click)="saveBook()" class="btn btn-outline-primary">
+            <i class="fas fa-save"></i>&nbsp; Guardar
+          </button>
+          }@else {
+            <button type="button" (click)="updateBook()" class="btn btn-outline-primary">
+              <i class="fas fa-refresh"></i>&nbsp; Actualizar
+            </button>
+          }
+          <a [routerLink]="['/books', 'my-books']" class="btn btn-link text-danger">
+            <i class="fas fa-times"></i>&nbsp;Cancelar
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 ```
 
 Para finalizar, la pregunta **¿cómo llegamos a ver la vista de actualizar un libro?**, bueno para eso ya teníamos definido un método en nuestro componente `MyBooksComponent` el cual nos permite redireccionar hacia la ruta para actualizar el libro:
